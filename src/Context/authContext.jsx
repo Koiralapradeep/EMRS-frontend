@@ -38,6 +38,7 @@ export const AuthProvider = ({ children }) => {
     console.log(`Redirecting to: ${redirectPath}`);
     navigate(redirectPath);
   };
+  
 
   const logout = () => {
     setUser(null);

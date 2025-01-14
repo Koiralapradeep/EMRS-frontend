@@ -42,7 +42,12 @@ const Add = () => {
 
     const formData = new FormData();
     Object.keys(form).forEach((key) => {
-      formData.append(key, form[key]);
+      if (key === "image") {
+        // Append the image file only if it exists
+        if (form[key]) formData.append(key, form[key]);
+      } else {
+        formData.append(key, form[key]);
+      }
     });
 
     try {

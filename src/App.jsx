@@ -1,17 +1,18 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Login from './Pages/Login';
-import ManagerDashboard from './Pages/Managerdashboard';
-import Unauthorized from './Pages/Unauthorized';
-import PrivateRoutes from './utils/PrivateRoutes';
-import RoleBasedRoute from './utils/RoleBasedRoute';
-import ManagerSummary from './components/dashboard/ManagerSummary';
-import Departments from './components/department/Departments';
-import AddDepartment from './components/department/AddDepartment';
-import EditDepartment from './components/department/EditDepartment';
-import List from './components/employee/List';
-import Add from './components/employee/Add'
-import EditEmployee from './components/employee/EditEmployee';
-import ViewEmployee from './components/employee/ViewEmployee';
+import { Routes, Route, Navigate } from "react-router-dom";
+import Login from "./Pages/Login";
+import ManagerDashboard from "./Pages/Managerdashboard";
+import EmployeeDashboard from "./Pages/EmployeeDashboard";
+import Unauthorized from "./Pages/Unauthorized";
+import PrivateRoutes from "./utils/PrivateRoutes";
+import RoleBasedRoute from "./utils/RoleBasedRoute";
+import ManagerSummary from "./components/dashboard/ManagerSummary";
+import Departments from "./components/department/Departments";
+import AddDepartment from "./components/department/AddDepartment";
+import EditDepartment from "./components/department/EditDepartment";
+import List from "./components/employee/List";
+import Add from "./components/employee/Add";
+import EditEmployee from "./components/employee/EditEmployee";
+import ViewEmployee from "./components/employee/ViewEmployee";
 
 function App() {
   return (
@@ -21,13 +22,13 @@ function App() {
         path="/manager-dashboard/*"
         element={
           <PrivateRoutes>
-            <RoleBasedRoute requiredRoles={['Manager']}>
+            <RoleBasedRoute requiredRoles={["Manager"]}>
               <ManagerDashboard />
             </RoleBasedRoute>
           </PrivateRoutes>
         }
       >
-        {/* Nested Routes */}
+        {/* Nested Routes for Manager */}
         <Route path="" element={<ManagerSummary />} />
         <Route path="summary" element={<ManagerSummary />} />
         <Route path="department" element={<Departments />} />
@@ -39,10 +40,28 @@ function App() {
         <Route path="view-employee/:id" element={<ViewEmployee />} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
+
+      <Route
+        path="/employee-dashboard/*"
+        element={
+          <PrivateRoutes>
+            <RoleBasedRoute requiredRoles={["Employee"]}>
+              <EmployeeDashboard />
+            </RoleBasedRoute>
+          </PrivateRoutes>
+        }
+      >
+        {/* Nested Routes for Employee */}
+        <Route path="" element={<List />} />
+        <Route path="summary" element={<List />} />
+        <Route path="view-employee/:id" element={<ViewEmployee />} />
+        <Route path="*" element={<Navigate to="summary" />} />
+      </Route>
+
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );
-}  ///
+}
 
 export default App;
