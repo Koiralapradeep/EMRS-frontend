@@ -17,6 +17,7 @@ const Managersidebar = ({ visible, toggleSidebar }) => {
     { name: 'Employee', icon: faUsers, path: '/manager-dashboard/employee' },
     { name: 'Leave', icon: faCalendarAlt, path: '/manager-dashboard/leave' },
     { name: 'Setting', icon: faCog, path: '/manager-dashboard/setting' },
+    { name: 'Attendance', icon: faCog, path: '/manager-dashboard/attendance' },
   ];
 
   return (

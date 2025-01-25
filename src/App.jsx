@@ -13,6 +13,12 @@ import List from "./components/employee/List";
 import Add from "./components/employee/Add";
 import EditEmployee from "./components/employee/EditEmployee";
 import ViewEmployee from "./components/employee/ViewEmployee";
+import Summary from "./components/EmployeeDashboard/Summary";
+import View from './components/EmployeeDashboard/View';
+import Leave from "./components/EmployeeDashboard/Leave";
+import Settings from "./components/EmployeeDashboard/Settings";
+import ManagerLeave from "./components/dashboard/ManagerLeave";
+import ManagerSettings from "./components/dashboard/ManagerSettings";
 
 function App() {
   return (
@@ -38,6 +44,8 @@ function App() {
         <Route path="add-employee" element={<Add />} />
         <Route path="edit-employee/:id" element={<EditEmployee />} />
         <Route path="view-employee/:id" element={<ViewEmployee />} />
+        <Route path="leave" element={<ManagerLeave/>} />
+        <Route path="setting" element={<ManagerSettings />} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 
@@ -52,9 +60,11 @@ function App() {
         }
       >
         {/* Nested Routes for Employee */}
-        <Route path="" element={<List />} />
-        <Route path="summary" element={<List />} />
-        <Route path="view-employee/:id" element={<ViewEmployee />} />
+        <Route path="" element={<Summary />} />
+        <Route path="summary" element={<Summary />} />
+        <Route path="profile/:userId" element={<View />} />
+        <Route path="leave" element={<Leave />} />
+        <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 
