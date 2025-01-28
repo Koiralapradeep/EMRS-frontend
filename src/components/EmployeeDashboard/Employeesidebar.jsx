@@ -22,7 +22,7 @@ const Employeesidebar = () => {
         : "/employee-dashboard/profile",
       icon: faUser,
     },
-    { name: "Leave", path: "/employee-dashboard/leave", icon: faCalendarAlt },
+    { name: "Leave", path: "/employee-dashboard/Leave", icon: faCalendarAlt },
     { name: "Settings", path: "/employee-dashboard/settings", icon: faCog },
     { name: "Shifts", path: "/employee-dashboard/shifts", icon: faCog },
   ];

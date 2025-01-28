@@ -1,24 +1,24 @@
-import React, { useEffect } from "react";
+import React from "react";
 import EmployeeNavbar from "../components/employeeDashboard/EmployeeNavbar";
 import Employeesidebar from "../components/employeeDashboard/Employeesidebar";
-import { Outlet, useNavigate } from "react-router-dom";
-import { useAuth } from "../Context/authContext";
+import { Outlet } from "react-router-dom";
 
 const EmployeeDashboard = () => {
-  const user = useAuth();
-
-
   return (
-    <div className="flex">
+    <div className="flex h-screen bg-gray-900">
       {/* Sidebar */}
-      <div className="relative top-16 w-64 bg-gray-800">
+      <div className="w-64 bg-gray-800">
         <Employeesidebar />
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-gray-900 min-h-screen pt-16">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Navbar */}
         <EmployeeNavbar />
-        <div className="p-6">
+
+        {/* Content Area */}
+        <div className="flex-1 p-6 mt-16 overflow-y-auto">
+          {/* The `mt-16` ensures content starts below the navbar */}
           <Outlet />
         </div>
       </div>
