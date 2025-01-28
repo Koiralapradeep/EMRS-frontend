@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-
 const List = () => {
   const [employees, setEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,7 +48,7 @@ const List = () => {
         <h1 className="text-3xl font-bold">Employees</h1>
         <button
           onClick={() => navigate("/manager-dashboard/add-employee")}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+          className="bg-teal-500 py-2 px-4 rounded"
         >
           Add Employee
         </button>
@@ -61,7 +60,7 @@ const List = () => {
           placeholder="Search employees..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-1/3 p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none"
+          className="w-64 p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
         />
       </div>
 

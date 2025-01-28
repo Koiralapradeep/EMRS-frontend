@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const UserContext = createContext();
 
@@ -12,38 +12,33 @@ export const AuthProvider = ({ children }) => {
 
   // Restore user session on initial render
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
 
     if (storedUser && token) {
-      console.log('Restoring user from localStorage:', storedUser);
       setUser(JSON.parse(storedUser));
     } else {
-      console.warn('No valid session found. Clearing localStorage.');
       localStorage.clear();
     }
-
     setLoading(false); // Mark restoration complete
   }, []);
 
   const login = (userData) => {
     setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', userData.token);
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", userData.token);
 
     const redirectPath =
-      userData.role.toLowerCase() === 'manager'
-        ? '/manager-dashboard'
-        : '/employee-dashboard';
-    console.log(`Redirecting to: ${redirectPath}`);
+      userData.role.toLowerCase() === "manager"
+        ? "/manager-dashboard"
+        : "/employee-dashboard";
     navigate(redirectPath);
   };
-  
 
   const logout = () => {
     setUser(null);
     localStorage.clear();
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
