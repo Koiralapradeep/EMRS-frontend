@@ -15,10 +15,11 @@ import EditEmployee from "./components/employee/EditEmployee";
 import ViewEmployee from "./components/employee/ViewEmployee";
 import Summary from "./components/EmployeeDashboard/Summary";
 import View from './components/EmployeeDashboard/View';
-import Leave from "./components/EmployeeDashboard/Leave";
 import Settings from "./components/EmployeeDashboard/Settings";
-import ManagerLeave from "./components/dashboard/ManagerLeave";
+import ManagerLeave from "./components/Leave/ManagerLeave";
 import ManagerSettings from "./components/dashboard/ManagerSettings";
+import LeaveList from './components/Leave/LeaveList';
+import AddLeave from './components/Leave/AddLeave';
 
 function App() {
   return (
@@ -63,7 +64,8 @@ function App() {
         <Route path="" element={<Summary />} />
         <Route path="summary" element={<Summary />} />
         <Route path="profile/:userId" element={<View />} />
-        <Route path="leave" element={<Leave />} />
+        <Route path="Leave" element={<LeaveList />} />
+        <Route path="add-leave" element={<AddLeave />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>

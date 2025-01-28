@@ -9,16 +9,16 @@ const Summary = () => {
   ];
 
   return (
-    <div className="p-6 bg-gray-900 text-white min-h-full">
+    <div className="bg-gray-900 text-white w-full h-full p-4">
       <h1 className="text-2xl font-bold mb-8">Dashboard Overview</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {summaryData.map((item, index) => (
           <div
             key={index}
-            className="bg-gray-800 p-4 rounded-lg shadow-md flex flex-col items-center justify-center hover:shadow-lg transition-shadow"
+            className="bg-gray-800 p-6 rounded-lg shadow-md flex flex-col items-center justify-center hover:shadow-lg transition-shadow"
           >
-            <div className="text-4xl text-teal-400 mb-2">{item.icon}</div>
+            <div className="text-4xl text-teal-400 mb-4">{item.icon}</div>
             <h2 className="text-lg font-semibold">{item.value}</h2>
             <p className="text-gray-400 text-sm">{item.title}</p>
           </div>

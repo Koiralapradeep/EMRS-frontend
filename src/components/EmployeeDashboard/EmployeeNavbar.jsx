@@ -16,10 +16,7 @@ const EmployeeNavbar = () => {
       <div className="px-6 py-4 flex justify-between items-center">
         {/* Welcome Section */}
         <h1 className="text-lg font-bold">
-          Welcome,{" "}
-          <span className="text-teal-400">
-            {user?.name || "Employee"}
-          </span>
+          Welcome, <span className="text-teal-400">{user?.name || "Employee"}</span>
         </h1>
 
         {/* Logout Button */}
