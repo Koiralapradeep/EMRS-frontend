@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const ManagerLeave = () => {
   const [leaves, setLeaves] = useState([]);
@@ -7,6 +8,8 @@ const ManagerLeave = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const navigate = useNavigate(); // Hook for navigation
 
   useEffect(() => {
     const fetchLeaves = async () => {
@@ -117,7 +120,10 @@ const ManagerLeave = () => {
                         </span>
                       </td>
                       <td className="px-4 py-2">
-                        <button className="bg-blue-500 text-white px-4 py-1 rounded">
+                        <button
+                          className="bg-blue-500 text-white px-4 py-1 rounded"
+                          onClick={() => navigate(`/manager-dashboard/detail`, { state: leave })}
+                        >
                           View
                         </button>
                       </td>

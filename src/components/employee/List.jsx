@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+
 const List = () => {
   const [employees, setEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -110,11 +111,13 @@ const List = () => {
                     Delete
                   </button>
                   <button
-                    className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-1 rounded"
-                    onClick={() => alert("Leave request feature coming soon!")}
+                  className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-1 rounded"
+                  onClick={() => navigate("/manager-dashboard/view-leave", { state: { userId: employee.userId } })}
                   >
-                    Leave
-                  </button>
+                 Leave
+               </button>
+
+
                 </td>
               </tr>
             ))
