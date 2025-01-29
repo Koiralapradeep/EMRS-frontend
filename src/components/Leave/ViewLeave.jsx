@@ -1,22 +1,28 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useLocation, useNavigate } from "react-router-dom";
 
-const LeaveList = () => {
+const ViewLeave = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [leaves, setLeaves] = useState([]);
   const [filteredLeaves, setFilteredLeaves] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState("");
 
-  const user = JSON.parse(localStorage.getItem("user"));
-  const userId = user?._id;
+  // Retrieve the userId from the location state
+  const userId = location.state?.userId;
 
   useEffect(() => {
     const fetchLeaves = async () => {
+      if (!userId) {
+        setError("No user ID provided.");
+        return;
+      }
+
       try {
-        const response = await axios.get("http://localhost:3000/api/leave/", {
-          params: { userId },
+        const response = await axios.get("http://localhost:3000/api/leave", {
+          params: { userId }, // Pass userId as query parameter
         });
 
         if (response.data.success) {
@@ -31,11 +37,7 @@ const LeaveList = () => {
       }
     };
 
-    if (userId) {
-      fetchLeaves();
-    } else {
-      setError("User is not logged in.");
-    }
+    fetchLeaves();
   }, [userId]);
 
   useEffect(() => {
@@ -55,14 +57,14 @@ const LeaveList = () => {
   }, [searchQuery, leaves]);
 
   return (
-    <div className="flex flex-col p-4 bg-gray-900 min-h-screen">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-white">Manage Leave</h1>
+    <div className="p-8 bg-gray-900 min-h-screen text-white">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Leave Requests</h1>
         <button
-          onClick={() => navigate("/employee-dashboard/add-leave")}
-          className="bg-teal-500 py-2 px-4 rounded text-white hover:bg-teal-600"
+          onClick={() => navigate(-1)}
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
         >
-          Add Leave
+          Back
         </button>
       </div>
       <input
@@ -73,37 +75,29 @@ const LeaveList = () => {
         className="w-64 p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 mb-4"
       />
       <div className="overflow-x-auto">
-        <table className="table-auto w-full text-left border border-gray-700 bg-gray-800 text-white rounded-lg">
-          <thead className="bg-gray-700 text-gray-300">
+        <table className="table-auto w-full bg-gray-800 rounded-lg text-white">
+          <thead>
             <tr>
-              <th className="px-4 py-2 border border-gray-600">S.No</th>
-              <th className="px-4 py-2 border border-gray-600">Leave Type</th>
-              <th className="px-4 py-2 border border-gray-600">From</th>
-              <th className="px-4 py-2 border border-gray-600">To</th>
-              <th className="px-4 py-2 border border-gray-600">Description</th>
-              <th className="px-4 py-2 border border-gray-600">Applied Date</th>
-              <th className="px-4 py-2 border border-gray-600">Status</th>
+              <th className="px-4 py-2">S.No</th>
+              <th className="px-4 py-2">Leave Type</th>
+              <th className="px-4 py-2">From</th>
+              <th className="px-4 py-2">To</th>
+              <th className="px-4 py-2">Description</th>
+              <th className="px-4 py-2">Applied Date</th>
+              <th className="px-4 py-2">Status</th>
             </tr>
           </thead>
           <tbody>
             {filteredLeaves.length > 0 ? (
               filteredLeaves.map((leave, index) => (
                 <tr key={leave._id} className="hover:bg-gray-700">
-                  <td className="px-4 py-2 border border-gray-600">{index + 1}</td>
-                  <td className="px-4 py-2 border border-gray-600">{leave.leaveType}</td>
-                  <td className="px-4 py-2 border border-gray-600">
-                    {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : "N/A"}
-                  </td>
-                  <td className="px-4 py-2 border border-gray-600">
-                    {leave.toDate ? new Date(leave.toDate).toLocaleDateString() : "N/A"}
-                  </td>
-                  <td className="px-4 py-2 border border-gray-600">{leave.description || "N/A"}</td>
-                  <td className="px-4 py-2 border border-gray-600">
-                    {leave.appliedDate
-                      ? new Date(leave.appliedDate).toLocaleDateString()
-                      : "N/A"}
-                  </td>
-                  <td className="px-4 py-2 border border-gray-600">
+                  <td className="px-4 py-2">{index + 1}</td>
+                  <td className="px-4 py-2">{leave.leaveType}</td>
+                  <td className="px-4 py-2">{new Date(leave.fromDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">{new Date(leave.toDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">{leave.description || "N/A"}</td>
+                  <td className="px-4 py-2">{new Date(leave.appliedDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">
                     <span
                       className={`px-3 py-1 rounded text-white ${
                         leave.status === "Approved"
@@ -113,15 +107,15 @@ const LeaveList = () => {
                           : "bg-yellow-500"
                       }`}
                     >
-                      {leave.status || "Pending"}
+                      {leave.status}
                     </span>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="7" className="px-4 py-2 border border-gray-600 text-center text-gray-400">
-                  {error || "No leave requests found."}
+                <td colSpan="7" className="px-4 py-2 text-center text-gray-400">
+                  {error || "No leave requests found for this employee."}
                 </td>
               </tr>
             )}
@@ -132,4 +126,4 @@ const LeaveList = () => {
   );
 };
 
-export default LeaveList;
+export default ViewLeave;

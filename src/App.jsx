@@ -20,6 +20,8 @@ import ManagerLeave from "./components/Leave/ManagerLeave";
 import ManagerSettings from "./components/dashboard/ManagerSettings";
 import LeaveList from './components/Leave/LeaveList';
 import AddLeave from './components/Leave/AddLeave';
+import Detail from './components/Leave/Detail';
+import ViewLeave from './components/Leave/ViewLeave';
 
 function App() {
   return (
@@ -47,6 +49,8 @@ function App() {
         <Route path="view-employee/:id" element={<ViewEmployee />} />
         <Route path="leave" element={<ManagerLeave/>} />
         <Route path="setting" element={<ManagerSettings />} />
+        <Route path="Detail" element={<Detail />} />
+        <Route path="view-leave" element={<ViewLeave/>} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 

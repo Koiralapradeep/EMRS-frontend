@@ -40,6 +40,7 @@ const Settings = () => {
 
     try {
       const token = localStorage.getItem("token");
+      console.log("Authorization Token:", token); // Debugging: Log token
       const response = await axios.put(
         "http://localhost:3000/api/setting/change-password",
         setting,
@@ -77,7 +78,6 @@ const Settings = () => {
         {error && <p className="text-red-500 mb-4">{error}</p>}
         {success && <p className="text-green-500 mb-4">{success}</p>}
         <form onSubmit={handleSubmit}>
-          {/* Current Password */}
           <div className="mb-4 relative">
             <label htmlFor="currentPassword" className="block text-gray-300 mb-2">
               Current Password
@@ -103,7 +103,6 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* New Password */}
           <div className="mb-4 relative">
             <label htmlFor="newPassword" className="block text-gray-300 mb-2">
               New Password
@@ -129,7 +128,6 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* Confirm New Password */}
           <div className="mb-6 relative">
             <label htmlFor="confirmPassword" className="block text-gray-300 mb-2">
               Confirm New Password
@@ -155,7 +153,6 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             className="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
