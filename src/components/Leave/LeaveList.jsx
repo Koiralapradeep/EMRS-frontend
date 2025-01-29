@@ -104,7 +104,15 @@ const LeaveList = () => {
                       : "N/A"}
                   </td>
                   <td className="px-4 py-2 border border-gray-600">
-                    <span className="bg-yellow-500 px-3 py-1 rounded text-white">
+                    <span
+                      className={`px-3 py-1 rounded text-white ${
+                        leave.status === "Approved"
+                          ? "bg-green-500"
+                          : leave.status === "Rejected"
+                          ? "bg-red-500"
+                          : "bg-yellow-500"
+                      }`}
+                    >
                       {leave.status || "Pending"}
                     </span>
                   </td>
