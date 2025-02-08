@@ -96,7 +96,11 @@ const ViewLeave = () => {
                   <td className="px-4 py-2">{new Date(leave.fromDate).toLocaleDateString()}</td>
                   <td className="px-4 py-2">{new Date(leave.toDate).toLocaleDateString()}</td>
                   <td className="px-4 py-2">{leave.description || "N/A"}</td>
-                  <td className="px-4 py-2">{new Date(leave.appliedDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">
+                    {leave.appliedDate !== "N/A" ? 
+                    new Date(leave.appliedDate).toLocaleDateString() 
+                    : "N/A"}
+                  </td>
                   <td className="px-4 py-2">
                     <span
                       className={`px-3 py-1 rounded text-white ${
