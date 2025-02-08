@@ -22,6 +22,8 @@ import LeaveList from './components/Leave/LeaveList';
 import AddLeave from './components/Leave/AddLeave';
 import Detail from './components/Leave/Detail';
 import ViewLeave from './components/Leave/ViewLeave';
+import Feedback from './components/EmployeeDashboard/Feedback';
+import ManagerFeedback from './components/dashboard/ManagerFeedback';
 
 function App() {
   return (
@@ -51,6 +53,7 @@ function App() {
         <Route path="setting" element={<ManagerSettings />} />
         <Route path="Detail" element={<Detail />} />
         <Route path="view-leave" element={<ViewLeave/>} />
+        <Route path="feedback" element={<ManagerFeedback/>} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 
@@ -70,7 +73,8 @@ function App() {
         <Route path="profile/:userId" element={<View />} />
         <Route path="Leave" element={<LeaveList />} />
         <Route path="add-leave" element={<AddLeave />} />
-        <Route path="settings" element={<Settings />} />
+        <Route path="Settings" element={<Settings />} />
+        <Route path="Feedback" element={<Feedback/>} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 
