@@ -6,6 +6,8 @@ import {
   faUser,
   faCalendarAlt,
   faCog,
+  faComments,
+  faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../Context/authContext";
 
@@ -23,8 +25,10 @@ const Employeesidebar = () => {
       icon: faUser,
     },
     { name: "Leave", path: "/employee-dashboard/Leave", icon: faCalendarAlt },
+    { name: "Feedback", path: "/employee-dashboard/feedback", icon: faComments },
+    { name: "Shifts", path: "/employee-dashboard/shifts", icon: faClock },
     { name: "Settings", path: "/employee-dashboard/settings", icon: faCog },
-    { name: "Shifts", path: "/employee-dashboard/shifts", icon: faCog },
+
   ];
 
   return (
