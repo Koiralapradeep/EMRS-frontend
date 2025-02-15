@@ -83,7 +83,7 @@ const List = () => {
                 <td className="p-3">{index + 1}</td>
                 <td className="p-3">
                   <img
-                    src={`http://localhost:3000/public/uploads/${employee.image}`}
+                  src={`http://localhost:3000/public/uploads/${employee.image}`}
                     alt={employee.fullName}
                     className="w-10 h-10 rounded-full mx-auto"
                   />
