@@ -1,42 +1,81 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { useAuth } from '../Context/authContext';
-import { useNavigate } from 'react-router-dom';
-import { FaGoogle } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useAuth } from "../Context/authContext";
+import { useNavigate } from "react-router-dom";
+import { FaGoogle } from "react-icons/fa";
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  //  Handle Google SSO Redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+
+    if (token) {
+      localStorage.setItem("jwt", token); //  Store token
+
+      axios
+        .get("http://localhost:3000/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((res) => {
+          const user = res.data;
+          localStorage.setItem("role", user.role); //  Store user role
+
+          if (user.role === "Manager") {
+            navigate("/manager-dashboard");
+          } else {
+            navigate("/employee-dashboard");
+          }
+        })
+        .catch(() => {
+          setError("Invalid session, please login again.");
+          localStorage.removeItem("jwt");
+        });
+    }
+  }, []);
+
+  // Handle manual login
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/login', {
-        email,
-        password,
-      });
+      const response = await axios.post(
+        "http://localhost:3000/api/auth/login",
+        { email, password }
+      );
 
       const user = response.data.user;
       if (response.data.success && user?.role) {
+        localStorage.setItem("jwt", response.data.token);
+        localStorage.setItem("role", user.role);
+
         login({ ...user, token: response.data.token }, navigate);
+
+        if (user.role === "Manager") {
+          navigate("/manager-dashboard");
+        } else {
+          navigate("/employee-dashboard");
+        }
       } else {
-        setError('Login failed. User role is missing.');
+        setError("Login failed. User role is missing.");
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'An unexpected error occurred. Please try again.');
-      console.error('Login Error:', err.response || err.message);
+      setError(err.response?.data?.error || "An unexpected error occurred.");
+      console.error("Login Error:", err.response || err.message);
     }
   };
 
+  //  Redirect to Google Login Route in Backend
   const handleGoogleLogin = () => {
-    // Add your logic for Google login here
-    console.log('Continue with Google clicked');
-  };
+    window.location.href = "http://localhost:3000/auth/google";
+  };  
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 text-gray-100">
@@ -82,21 +121,14 @@ const Login = () => {
           </button>
         </form>
 
-        <div className="text-center mt-4">
-          <a
-            href="/forgot-password"
-            className="text-blue-400 hover:underline text-sm"
-          >
-            Forgot Password?
-          </a>
-        </div>
-
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-600"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-gray-800 px-2 text-gray-400">Or continue with</span>
+            <span className="bg-gray-800 px-2 text-gray-400">
+              Or continue with
+            </span>
           </div>
         </div>
 
