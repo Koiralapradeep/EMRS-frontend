@@ -5,9 +5,11 @@ import axios from "axios";
 import { useAuth } from "../../Context/authContext";
 
 const ManagerSettings = () => {
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -17,8 +19,16 @@ const ManagerSettings = () => {
     newPassword: "",
     confirmPassword: "",
   });
+
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  const togglePasswordVisibility = (field) => {
+    setShowPassword((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,13 +51,12 @@ const ManagerSettings = () => {
     try {
       const token = localStorage.getItem("token");
       console.log("Authorization Token:", token); // Debugging: Log token
+
       const response = await axios.put(
         "http://localhost:3000/api/setting/change-password",
         setting,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -59,9 +68,7 @@ const ManagerSettings = () => {
           newPassword: "",
           confirmPassword: "",
         });
-        setTimeout(() => {
-          navigate("/manager-dashboard");
-        }, 2000);
+        setTimeout(() => navigate("/manager-dashboard"), 3000);
       } else {
         setError(response.data.error || "Failed to change password.");
       }
@@ -72,90 +79,87 @@ const ManagerSettings = () => {
   };
 
   return (
-    <div className="flex justify-center items-start min-h-screen bg-gray-900 p-4">
-      <div className="bg-gray-800 text-white rounded-lg shadow-lg p-6 w-full max-w-md mt-12">
-        <h1 className="text-2xl font-bold mb-6 text-center">Change Password</h1>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
-        {success && <p className="text-green-500 mb-4">{success}</p>}
+    <div className="flex justify-center items-center min-h-screen bg-gray-900 p-6">
+      <div className="bg-gray-800 text-white rounded-lg shadow-lg p-8 w-full max-w-md">
+        <h1 className="text-2xl font-bold text-center mb-6">Change Password</h1>
+
+        {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+        {success && <p className="text-green-500 text-center mb-4">{success}</p>}
+
         <form onSubmit={handleSubmit}>
-          <div className="mb-4 relative">
-            <label htmlFor="currentPassword" className="block text-gray-300 mb-2">
-              Current Password
-            </label>
+          {/* Current Password */}
+          <div className="mb-4">
+            <label className="block text-gray-300 mb-2">Current Password</label>
             <div className="relative">
               <input
-                type={showCurrentPassword ? "text" : "password"}
-                id="currentPassword"
+                type={showPassword.current ? "text" : "password"}
                 name="currentPassword"
                 value={setting.currentPassword}
                 onChange={handleChange}
                 placeholder="Enter Current Password"
-                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                 required
               />
               <button
                 type="button"
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-white"
+                onClick={() => togglePasswordVisibility("current")}
+                className="absolute right-3 top-3 text-gray-400 hover:text-white"
               >
-                {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword.current ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
 
-          <div className="mb-4 relative">
-            <label htmlFor="newPassword" className="block text-gray-300 mb-2">
-              New Password
-            </label>
+          {/* New Password */}
+          <div className="mb-4">
+            <label className="block text-gray-300 mb-2">New Password</label>
             <div className="relative">
               <input
-                type={showNewPassword ? "text" : "password"}
-                id="newPassword"
+                type={showPassword.new ? "text" : "password"}
                 name="newPassword"
                 value={setting.newPassword}
                 onChange={handleChange}
                 placeholder="Enter New Password"
-                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                 required
               />
               <button
                 type="button"
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-white"
+                onClick={() => togglePasswordVisibility("new")}
+                className="absolute right-3 top-3 text-gray-400 hover:text-white"
               >
-                {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword.new ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
 
-          <div className="mb-6 relative">
-            <label htmlFor="confirmPassword" className="block text-gray-300 mb-2">
-              Confirm New Password
-            </label>
+          {/* Confirm Password */}
+          <div className="mb-6">
+            <label className="block text-gray-300 mb-2">Confirm New Password</label>
             <div className="relative">
               <input
-                type={showConfirmPassword ? "text" : "password"}
-                id="confirmPassword"
+                type={showPassword.confirm ? "text" : "password"}
                 name="confirmPassword"
                 value={setting.confirmPassword}
                 onChange={handleChange}
                 placeholder="Confirm New Password"
-                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                 required
               />
               <button
                 type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-white"
+                onClick={() => togglePasswordVisibility("confirm")}
+                className="absolute right-3 top-3 text-gray-400 hover:text-white"
               >
-                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword.confirm ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-md transition duration-300"
           >
             Change Password
           </button>

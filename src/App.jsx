@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./Pages/Login";
 import ManagerDashboard from "./Pages/ManagerDashboard";
 import EmployeeDashboard from "./Pages/EmployeeDashboard";
+import AdminDashboard from "./Pages/AdminDashboard";
 import UnAuthorized from "./Pages/UnAuthorized";
 import PrivateRoutes from "./utils/PrivateRoutes";
 import RoleBasedRoute from "./utils/RoleBasedRoute";
@@ -14,7 +15,7 @@ import AddEmployee from "./components/employee/Add";
 import EditEmployee from "./components/employee/EditEmployee";
 import ViewEmployee from "./components/employee/ViewEmployee";
 import Summary from "./components/EmployeeDashboard/Summary";
-import EmployeeProfile from "./components/EmployeeDashboard/View";
+import View from './components/EmployeeDashboard/View';
 import EmployeeSettings from "./components/EmployeeDashboard/Settings";
 import ManagerLeave from "./components/Leave/ManagerLeave";
 import ManagerSettings from "./components/dashboard/ManagerSettings";
@@ -24,12 +25,34 @@ import LeaveDetail from "./components/Leave/Detail";
 import ViewLeave from "./components/Leave/ViewLeave";
 import EmployeeFeedback from "./components/EmployeeDashboard/Feedback";
 import ManagerFeedback from "./components/dashboard/ManagerFeedback";
+import AdminSummary from "./components/AdminDashboard/AdminSummary";
+import Companies from "./components/AdminDashboard/Companies";
+import AddCompany from "./components/AdminDashboard/AddCompany";
+import EditCompany from './components/AdminDashboard/EditCompany';
 
 function App() {
   return (
     <Routes>
       {/*  Login Page */}
       <Route path="/login" element={<Login />} />
+
+      {/* Admin Routes (Protected) */}
+      <Route
+        path="/admin-dashboard/*"
+        element={
+          <PrivateRoutes>
+            <RoleBasedRoute requiredRoles={["Admin"]}>
+              <AdminDashboard />
+            </RoleBasedRoute>
+          </PrivateRoutes>
+        }
+      >
+        <Route index element={<AdminSummary />} />
+        <Route path="companies" element={<Companies />} />
+        <Route path="add-company" element={<AddCompany />} />
+        <Route path="edit-company/:id" element={<EditCompany />} />
+        <Route path="*" element={<Navigate to="/admin-dashboard" />} />
+      </Route>
 
       {/*  Manager Routes (Protected) */}
       <Route
@@ -53,7 +76,7 @@ function App() {
         <Route path="edit-employee/:id" element={<EditEmployee />} />
         <Route path="view-employee/:id" element={<ViewEmployee />} />
         <Route path="leave" element={<ManagerLeave />} />
-        <Route path="settings" element={<ManagerSettings />} />
+        <Route path="setting" element={<ManagerSettings />} />
         <Route path="detail" element={<LeaveDetail />} />
         <Route path="view-leave" element={<ViewLeave />} />
         <Route path="feedback" element={<ManagerFeedback />} />
@@ -75,7 +98,7 @@ function App() {
         {/*  Default Nested Route */}
         <Route index element={<Summary />} />
         <Route path="summary" element={<Summary />} />
-        <Route path="profile/:userId" element={<EmployeeProfile />} />
+        <Route path="profile/:userId" element={<View />} />
         <Route path="leave" element={<LeaveList />} />
         <Route path="add-leave" element={<AddLeave />} />
         <Route path="settings" element={<EmployeeSettings />} />

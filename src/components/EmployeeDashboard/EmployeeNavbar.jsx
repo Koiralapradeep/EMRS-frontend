@@ -8,6 +8,8 @@ const EmployeeNavbar = () => {
 
   const handleLogout = () => {
     logout();
+    localStorage.removeItem("companyId"); //  Clear company session
+    localStorage.removeItem("companyName");
     navigate("/login");
   };
 
@@ -18,6 +20,7 @@ const EmployeeNavbar = () => {
         <h1 className="text-lg font-bold">
           Welcome, <span className="text-teal-400">{user?.name || "Employee"}</span>
         </h1>
+
 
         {/* Logout Button */}
         <button

@@ -9,8 +9,8 @@ const Feedback = () => {
     accomplishments: "",
     challenges: "",
     suggestions: "",
-    makePrivate: false,       // New flag to control privacy in Manager view
-    saveToDashboard: false,   // New flag to permanently save feedback on Employee Dashboard
+    makePrivate: false,
+    saveToDashboard: false,
   });
 
   const [previousFeedbacks, setPreviousFeedbacks] = useState([]);
@@ -21,9 +21,17 @@ const Feedback = () => {
   useEffect(() => {
     const fetchPreviousFeedbacks = async () => {
       try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error(" No token found in localStorage. User might be logged out.");
+          return;
+        }
+
         const response = await axios.get("http://localhost:3000/api/feedback", {
+          headers: { Authorization: `Bearer ${token}` },
           params: { userId: user._id },
         });
+
         if (response.data.success) {
           setPreviousFeedbacks(response.data.feedbacks);
         } else {
@@ -33,6 +41,7 @@ const Feedback = () => {
         setError("Internal Server Error.");
       }
     };
+
     fetchPreviousFeedbacks();
   }, [user._id]);
 
@@ -42,7 +51,7 @@ const Feedback = () => {
     setFeedback((prevState) => ({ ...prevState, [name]: value }));
   };
 
-  // Update checkboxes and log for debugging if needed
+  // Update checkboxes
   const handleCheckboxChange = (e) => {
     const { name, checked } = e.target;
     console.log(`Checkbox ${name} changed: ${checked}`);
@@ -54,7 +63,14 @@ const Feedback = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error(" No token found in localStorage.");
+        return;
+      }
+
       const response = await axios.post(
         "http://localhost:3000/api/feedback",
         {
@@ -63,15 +79,21 @@ const Feedback = () => {
           saveToDashboard: Boolean(feedback.saveToDashboard),
         },
         {
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         }
       );
+
       if (response.data.success) {
         setSuccess(response.data.message);
+
         // Only add to dashboard if feedback is to be saved permanently
         if (response.data.feedback.saveToDashboard) {
           setPreviousFeedbacks((prev) => [response.data.feedback, ...prev]);
         }
+
         // Reset the form
         setFeedback({
           userId: user._id,

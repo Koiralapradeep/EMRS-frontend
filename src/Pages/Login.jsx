@@ -5,77 +5,91 @@ import { useNavigate } from "react-router-dom";
 import { FaGoogle } from "react-icons/fa";
 
 const Login = () => {
+  const { setUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login } = useAuth();
   const navigate = useNavigate();
 
-  //  Handle Google SSO Redirect
+  // Check for token from Google OAuth redirect in URL params
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get("token");
 
     if (token) {
-      localStorage.setItem("jwt", token); //  Store token
+      console.log("OAuth2 Token received:", token);
+      localStorage.setItem("token", token);
 
       axios
         .get("http://localhost:3000/api/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
         })
         .then((res) => {
-          const user = res.data;
-          localStorage.setItem("role", user.role); //  Store user role
+          if (res.data?.success) {
+            const userData = res.data.user;
+            setUser(userData);
+            localStorage.setItem("user", JSON.stringify(userData));
 
-          if (user.role === "Manager") {
-            navigate("/manager-dashboard");
+            // Redirect based on user role
+            if (userData.role === "Admin") {
+              navigate("/admin-dashboard");
+            } else if (userData.role === "Manager") {
+              navigate("/manager-dashboard");
+            } else {
+              navigate("/employee-dashboard");
+            }
           } else {
-            navigate("/employee-dashboard");
+            setError("Unable to fetch user data via /me endpoint.");
           }
         })
-        .catch(() => {
-          setError("Invalid session, please login again.");
-          localStorage.removeItem("jwt");
+        .catch((err) => {
+          console.error("Invalid session. Please log in again.", err);
+          localStorage.removeItem("token");
+          setError("Invalid session. Please log in again.");
         });
     }
-  }, []);
+  }, [navigate, setUser]);
 
-  // Handle manual login
+  // Handle manual login form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
-      const response = await axios.post(
-        "http://localhost:3000/api/auth/login",
-        { email, password }
-      );
+      const response = await axios.post("http://localhost:3000/api/auth/login", {
+        email,
+        password,
+      });
 
-      const user = response.data.user;
-      if (response.data.success && user?.role) {
-        localStorage.setItem("jwt", response.data.token);
-        localStorage.setItem("role", user.role);
+      if (!response.data?.success || !response.data?.user) {
+        setError("Login failed. No user data received.");
+        return;
+      }
 
-        login({ ...user, token: response.data.token }, navigate);
+      const { user, token } = response.data;
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      setUser(user);
 
-        if (user.role === "Manager") {
-          navigate("/manager-dashboard");
-        } else {
-          navigate("/employee-dashboard");
-        }
+      // Redirect based on role
+      if (user.role === "Admin") {
+        navigate("/admin-dashboard");
+      } else if (user.role === "Manager") {
+        navigate("/manager-dashboard");
       } else {
-        setError("Login failed. User role is missing.");
+        navigate("/employee-dashboard");
       }
     } catch (err) {
+      console.error("Login Error:", err.response?.data || err.message);
       setError(err.response?.data?.error || "An unexpected error occurred.");
-      console.error("Login Error:", err.response || err.message);
     }
   };
 
-  //  Redirect to Google Login Route in Backend
+  // Redirect to Google OAuth endpoint
   const handleGoogleLogin = () => {
     window.location.href = "http://localhost:3000/auth/google";
-  };  
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 text-gray-100">
@@ -88,6 +102,7 @@ const Login = () => {
           </div>
         )}
 
+        {/* Manual Login Form */}
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Email</label>
@@ -121,17 +136,17 @@ const Login = () => {
           </button>
         </form>
 
+        {/* Divider */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-600"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-gray-800 px-2 text-gray-400">
-              Or continue with
-            </span>
+            <span className="bg-gray-800 px-2 text-gray-400">Or continue with</span>
           </div>
         </div>
 
+        {/* Google OAuth2 Login Button */}
         <button
           onClick={handleGoogleLogin}
           className="w-full bg-white text-gray-900 py-2 rounded font-medium flex items-center justify-center transition duration-300 hover:bg-gray-100"

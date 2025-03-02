@@ -1,3 +1,4 @@
+// src/components/ManagerLeave.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -14,40 +15,48 @@ const ManagerLeave = () => {
     fetchLeaves();
   }, []);
 
+  // Fetch all leaves from the server
   const fetchLeaves = async () => {
     try {
-      const response = await axios.get("http://localhost:3000/api/leave");
-      if (response.data.success) {
+      const response = await axios.get("http://localhost:3000/api/leave", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      // Check if success is true and leaves is an array
+      if (response.data.success && Array.isArray(response.data.leaves)) {
         setLeaves(response.data.leaves);
-        console.log(leaves)
         setFilteredLeaves(response.data.leaves);
       } else {
+        // If not successful or leaves is not an array, reset to empty arrays
+        setLeaves([]);
+        setFilteredLeaves([]);
         setError(response.data.error || "Failed to fetch leave requests.");
       }
     } catch (err) {
+      // On error, reset arrays and set error message
+      setLeaves([]);
+      setFilteredLeaves([]);
       setError("Internal Server Error.");
     }
   };
 
+  // Filter leaves based on status + search
   const applyFilters = (status) => {
     let filtered = leaves;
 
-    // Apply status filter
-    if (status === "Pending") {
-      filtered = leaves.filter((leave) => leave.status === "Pending");
-    } else if (status === "Approved") {
-      filtered = leaves.filter((leave) => leave.status === "Approved");
-    } else if (status === "Rejected") {
-      filtered = leaves.filter((leave) => leave.status === "Rejected");
+    // Filter by status
+    if (status !== "All") {
+      filtered = filtered.filter((leave) => leave.status === status);
     }
 
-    // Apply search query filter
-    if (searchQuery.trim()) {
+    // Filter by search query
+    if (searchQuery.trim() !== "") {
+      const lower = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (leave) =>
-          leave.employeeID?.toLowerCase().includes(searchQuery) ||
-          leave.userId?.name?.toLowerCase().includes(searchQuery) ||
-          leave.department?.toLowerCase().includes(searchQuery)
+          leave.employeeID?.toLowerCase().includes(lower) ||
+          leave.userId?.name?.toLowerCase().includes(lower) ||
+          leave.department?.toLowerCase().includes(lower)
       );
     }
 
@@ -61,21 +70,28 @@ const ManagerLeave = () => {
 
   const handleFilterClick = (status) => {
     setFilterStatus(status);
-    applyFilters(status); // Pass the clicked status directly to applyFilters
+    applyFilters(status);
   };
 
+  // View leave details in modal
   const viewLeaveDetails = (leave) => {
     setSelectedLeave(leave);
     setModalVisible(true);
   };
 
+  // Delete leave
   const deleteLeave = async (leaveId) => {
     try {
-      const response = await axios.delete(`http://localhost:3000/api/leave/${leaveId}`);
+      const response = await axios.delete(
+        `http://localhost:3000/api/leave/${leaveId}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
       if (response.data.success) {
-        const updatedLeaves = leaves.filter((leave) => leave._id !== leaveId);
+        const updatedLeaves = leaves.filter((l) => l._id !== leaveId);
         setLeaves(updatedLeaves);
-        setFilteredLeaves(updatedLeaves.filter((leave) => leaveMatchesCurrentFilter(leave)));
+        setFilteredLeaves(updatedLeaves.filter(leaveMatchesCurrentFilter));
         alert("Leave deleted successfully.");
       } else {
         alert(response.data.message || "Failed to delete leave.");
@@ -85,15 +101,21 @@ const ManagerLeave = () => {
     }
   };
 
+  // Approve/Reject leave
   const updateLeaveStatus = async (leaveId, status) => {
     try {
-      const response = await axios.put(`http://localhost:3000/api/leave/${leaveId}/status`, { status });
+      const response = await axios.put(
+        `http://localhost:3000/api/leave/${leaveId}/status`,
+        { status },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+
       if (response.data.success) {
-        const updatedLeaves = leaves.map((leave) =>
-          leave._id === leaveId ? { ...leave, status } : leave
+        const updatedLeaves = leaves.map((l) =>
+          l._id === leaveId ? { ...l, status } : l
         );
         setLeaves(updatedLeaves);
-        setFilteredLeaves(updatedLeaves.filter((leave) => leaveMatchesCurrentFilter(leave)));
+        setFilteredLeaves(updatedLeaves.filter(leaveMatchesCurrentFilter));
         setModalVisible(false);
         alert(`Leave successfully ${status.toLowerCase()}!`);
       } else {
@@ -104,6 +126,7 @@ const ManagerLeave = () => {
     }
   };
 
+  // Check if a leave matches current filter
   const leaveMatchesCurrentFilter = (leave) => {
     if (filterStatus === "All") return true;
     return leave.status === filterStatus;
@@ -113,6 +136,7 @@ const ManagerLeave = () => {
     <div className="p-8 bg-gray-900 min-h-screen text-white">
       <h1 className="text-3xl font-bold mb-6">Manage Leaves</h1>
       {error && <p className="text-red-500">{error}</p>}
+
       <div className="flex items-center justify-between mb-6">
         <input
           type="text"
@@ -137,6 +161,7 @@ const ManagerLeave = () => {
           ))}
         </div>
       </div>
+
       <div className="overflow-x-auto">
         <table className="table-auto w-full bg-gray-800 rounded-lg text-white border border-gray-700">
           <thead>
@@ -163,8 +188,12 @@ const ManagerLeave = () => {
                 <td className="px-4 py-3">{leave.userId?.name || "N/A"}</td>
                 <td className="px-4 py-3">{leave.department || "N/A"}</td>
                 <td className="px-4 py-3">{leave.leaveType}</td>
-                <td className="px-4 py-3">{new Date(leave.fromDate).toLocaleDateString()}</td>
-                <td className="px-4 py-3">{new Date(leave.toDate).toLocaleDateString()}</td>
+                <td className="px-4 py-3">
+                  {new Date(leave.fromDate).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3">
+                  {new Date(leave.toDate).toLocaleDateString()}
+                </td>
                 <td className="px-4 py-3 text-center">
                   <span
                     className={`px-4 py-1 rounded-lg font-medium ${
@@ -198,35 +227,61 @@ const ManagerLeave = () => {
         </table>
       </div>
 
+      {/* Modal for viewing details & approving/rejecting */}
       {modalVisible && selectedLeave && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-gray-800 p-6 rounded-lg text-white w-1/2">
             <h2 className="text-2xl font-bold mb-4">Leave Details</h2>
-            <p><strong>Employee ID:</strong> {selectedLeave.employeeID || "N/A"}</p>
-            <p><strong>Name:</strong> {selectedLeave.userId?.name || "N/A"}</p>
-            <p><strong>Department:</strong> {selectedLeave.department || "N/A"}</p>
-            <p><strong>Leave Type:</strong> {selectedLeave.leaveType}</p>
-            <p><strong>From:</strong> {new Date(selectedLeave.fromDate).toLocaleDateString()}</p>
-            <p><strong>To:</strong> {new Date(selectedLeave.toDate).toLocaleDateString()}</p>
-            <p><strong>Status:</strong> {selectedLeave.status}</p>
+            <p>
+              <strong>Employee ID:</strong> {selectedLeave.employeeID || "N/A"}
+            </p>
+            <p>
+              <strong>Name:</strong> {selectedLeave.userId?.name || "N/A"}
+            </p>
+            <p>
+              <strong>Department:</strong> {selectedLeave.department || "N/A"}
+            </p>
+            <p>
+              <strong>Leave Type:</strong> {selectedLeave.leaveType}
+            </p>
+            <p>
+              <strong>From:</strong>{" "}
+              {new Date(selectedLeave.fromDate).toLocaleDateString()}
+            </p>
+            <p>
+              <strong>To:</strong>{" "}
+              {new Date(selectedLeave.toDate).toLocaleDateString()}
+            </p>
+            <p>
+              <strong>Status:</strong> {selectedLeave.status}
+            </p>
+
             {selectedLeave.status === "Pending" ? (
               <div className="flex gap-4 mt-6">
                 <button
-                  onClick={() => updateLeaveStatus(selectedLeave._id, "Approved")}
+                  onClick={() =>
+                    updateLeaveStatus(selectedLeave._id, "Approved")
+                  }
                   className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded"
                 >
                   Approve
                 </button>
                 <button
-                  onClick={() => updateLeaveStatus(selectedLeave._id, "Rejected")}
+                  onClick={() =>
+                    updateLeaveStatus(selectedLeave._id, "Rejected")
+                  }
                   className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded"
                 >
                   Reject
                 </button>
               </div>
             ) : (
-              <p className="mt-4 text-lg font-medium">This leave has already been {selectedLeave.status.toLowerCase()}.</p>
+              <p className="mt-4 text-lg font-medium">
+                This leave has already been{" "}
+                {selectedLeave.status.toLowerCase()}.
+              </p>
             )}
+
             <button
               onClick={() => setModalVisible(false)}
               className="bg-gray-500 hover:bg-gray-600 px-4 py-2 rounded mt-4"

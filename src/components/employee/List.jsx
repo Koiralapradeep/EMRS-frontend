@@ -11,22 +11,44 @@ const List = () => {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const response = await axios.get("http://localhost:3000/api/employee");
+        const token = localStorage.getItem("token"); // Get token
+        if (!token) {
+          console.error(" No token found. User might not be logged in.");
+          return;
+        }
+    
+        const response = await axios.get("http://localhost:3000/api/employee", {
+          headers: { Authorization: `Bearer ${token}` }, // Include token
+        });
+    
         setEmployees(response.data.employees);
       } catch (error) {
-        console.error("Error fetching employees:", error);
+        console.error("Error fetching employees:", error.response?.data || error);
       }
     };
+    
     fetchEmployees();
   }, []);
 
   // Delete employee
   const handleDelete = async (id) => {
-    const confirm = window.confirm("Are you sure you want to delete this employee?");
-    if (!confirm) return;
+    const confirmDelete = window.confirm("Are you sure you want to delete this employee?");
+    if (!confirmDelete) return;
 
     try {
-      const response = await axios.delete(`http://localhost:3000/api/employee/${id}`);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("No token found. Please log in again.");
+        return;
+      }
+
+      // Use the 'id' parameter in the route
+      const response = await axios.delete(`http://localhost:3000/api/employee/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
       if (response.data.success) {
         setEmployees((prev) => prev.filter((emp) => emp._id !== id));
       } else {
@@ -37,6 +59,7 @@ const List = () => {
       alert(error.response?.data?.error || "Internal Server Error.");
     }
   };
+
 
   // Filter employees based on the search term
   const filteredEmployees = employees.filter((employee) =>

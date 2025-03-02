@@ -1,71 +1,91 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 
 const EditEmployee = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // expects the Employee document's _id
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    fullName: '',
-    email: '',
-    employeeID: '',
-    dob: '',
-    gender: '',
-    maritalStatus: '',
-    designation: '',
-    department: '',
-    role: '',
+    fullName: "",
+    email: "",
+    employeeID: "",
+    dob: "",
+    gender: "",
+    maritalStatus: "",
+    designation: "",
+    department: "",
+    role: "",
     image: null,
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [departments, setDepartments] = useState([]);
 
-  // Fetch the employee data and departments when the component loads
   useEffect(() => {
     const fetchEmployee = async () => {
       try {
-        const { data } = await axios.get(`http://localhost:3000/api/employee/${id}`);
-        if (data.success) {
-          const { employee } = data;
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No token found. Redirecting to login.");
+          navigate("/login");
+          return;
+        }
+        // GET /api/employee/:id to fetch employee details
+        const response = await axios.get(`http://localhost:3000/api/employee/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.data.success) {
+          const { employee } = response.data;
           setForm({
             fullName: employee.fullName,
             email: employee.email,
             employeeID: employee.employeeID,
-            dob: employee.dob ? employee.dob.split('T')[0] : '',
+            dob: employee.dob ? employee.dob.split("T")[0] : "",
             gender: employee.gender,
             maritalStatus: employee.maritalStatus,
             designation: employee.designation,
-            department: employee.department?._id || '',
-            role: employee.role,
-            image: null, // Reset image field
+            department: employee.department ? employee.department._id : "",
+            role: employee.role || "",
+            image: null,
           });
+        } else {
+          console.error("Error fetching employee:", response.data.error);
         }
       } catch (error) {
-        console.error('Error fetching employee data:', error);
-        setError('Failed to fetch employee data.');
+        console.error("Error fetching employee:", error.response?.data || error);
       }
     };
 
     const fetchDepartments = async () => {
       try {
-        const { data } = await axios.get('http://localhost:3000/api/departments');
-        if (data.success) {
-          setDepartments(data.departments);
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No token found.");
+          return;
+        }
+        const response = await axios.get("http://localhost:3000/api/departments", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.data.success) {
+          setDepartments(response.data.departments);
         }
       } catch (error) {
-        console.error('Error fetching departments:', error);
+        console.error("Error fetching departments:", error.response?.data || error);
       }
     };
 
     fetchEmployee();
     fetchDepartments();
-  }, [id]);
+  }, [id, navigate]);
 
-  // Handle form submission for updating employee
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
+    setError("");
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No token found. Redirecting to login.");
+      navigate("/login");
+      return;
+    }
     try {
       const formData = new FormData();
       Object.keys(form).forEach((key) => {
@@ -73,18 +93,20 @@ const EditEmployee = () => {
           formData.append(key, form[key]);
         }
       });
-
+      // PUT /api/employee/:id to update employee details
       const response = await axios.put(`http://localhost:3000/api/employee/${id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
       });
-
       if (response.data.success) {
-        alert('Employee updated successfully!');
-        navigate('/manager-dashboard/employee');
+        alert("Employee updated successfully!");
+        navigate("/manager-dashboard/employee");
       }
     } catch (error) {
-      console.error('Error updating employee:', error);
-      setError(error.response?.data?.error || 'Failed to update employee.');
+      console.error("Error updating employee:", error.response?.data || error);
+      setError(error.response?.data?.error || "Failed to update employee.");
     }
   };
 
@@ -104,7 +126,6 @@ const EditEmployee = () => {
               className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
             />
           </div>
-
           {/* Email */}
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
@@ -115,7 +136,6 @@ const EditEmployee = () => {
               className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
             />
           </div>
-
           {/* Employee ID */}
           <div>
             <label className="block text-sm font-medium mb-1">Employee ID</label>
@@ -126,7 +146,6 @@ const EditEmployee = () => {
               className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
             />
           </div>
-
           {/* Date of Birth */}
           <div>
             <label className="block text-sm font-medium mb-1">Date of Birth</label>
@@ -137,7 +156,6 @@ const EditEmployee = () => {
               className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
             />
           </div>
-
           {/* Gender */}
           <div>
             <label className="block text-sm font-medium mb-1">Gender</label>
@@ -152,7 +170,6 @@ const EditEmployee = () => {
               <option value="Other">Other</option>
             </select>
           </div>
-
           {/* Marital Status */}
           <div>
             <label className="block text-sm font-medium mb-1">Marital Status</label>
@@ -166,7 +183,6 @@ const EditEmployee = () => {
               <option value="Married">Married</option>
             </select>
           </div>
-
           {/* Designation */}
           <div>
             <label className="block text-sm font-medium mb-1">Designation</label>
@@ -177,7 +193,6 @@ const EditEmployee = () => {
               className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
             />
           </div>
-
           {/* Department */}
           <div>
             <label className="block text-sm font-medium mb-1">Department</label>
@@ -194,8 +209,7 @@ const EditEmployee = () => {
               ))}
             </select>
           </div>
-
-          {/* Role */}
+          {/* Role (Optional) */}
           <div>
             <label className="block text-sm font-medium mb-1">Role</label>
             <select
@@ -208,7 +222,6 @@ const EditEmployee = () => {
               <option value="Employee">Employee</option>
             </select>
           </div>
-
           {/* Upload Image */}
           <div>
             <label className="block text-sm font-medium mb-1">Upload Image</label>
@@ -218,7 +231,6 @@ const EditEmployee = () => {
               className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
             />
           </div>
-
           {/* Submit and Cancel */}
           <div className="col-span-2 flex justify-between">
             <button type="submit" className="bg-blue-500 py-2 px-4 rounded text-white">
@@ -226,7 +238,7 @@ const EditEmployee = () => {
             </button>
             <button
               type="button"
-              onClick={() => navigate('/manager-dashboard/employee')}
+              onClick={() => navigate("/manager-dashboard/employee")}
               className="bg-gray-600 py-2 px-4 rounded text-white"
             >
               Cancel

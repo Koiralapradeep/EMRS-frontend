@@ -6,18 +6,49 @@ const Departments = () => {
   const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState(''); // State for search term
 
+  // Function to fetch departments with authentication token
   const fetchDepartments = async () => {
+    const token = localStorage.getItem("token"); // Get token from localStorage
+
+    console.log("DEBUG - Token being sent:", token); // Log token before API call
+
+    if (!token) {
+      console.error("ERROR - No token found in localStorage.");
+      return;
+    }
+
     try {
-      const response = await axios.get('http://localhost:3000/api/departments');
+      const response = await axios.get("http://localhost:3000/api/departments", {
+        headers: { Authorization: `Bearer ${token}` }, // Send token in headers
+      });
       setDepartments(response.data);
     } catch (err) {
-      console.error('Failed to fetch departments:', err);
+      console.error("Failed to fetch departments:", err);
     }
   };
 
   useEffect(() => {
     fetchDepartments();
   }, []);
+
+  // Function to delete a department with token authentication
+  const deleteDepartment = async (deptId) => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      console.error("ERROR - No token found in localStorage.");
+      return;
+    }
+
+    try {
+      await axios.delete(`http://localhost:3000/api/departments/${deptId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchDepartments(); // Refresh list after deletion
+    } catch (err) {
+      console.error("Failed to delete department:", err);
+    }
+  };
 
   // Filter departments based on the search term
   const filteredDepartments = departments.filter((dept) =>
@@ -66,10 +97,7 @@ const Departments = () => {
                 </Link>
                 <button
                   className="bg-red-500 px-3 py-1 rounded"
-                  onClick={async () => {
-                    await axios.delete(`http://localhost:3000/api/departments/${dept._id}`);
-                    fetchDepartments(); // Refresh list after deletion
-                  }}
+                  onClick={() => deleteDepartment(dept._id)}
                 >
                   Delete
                 </button>

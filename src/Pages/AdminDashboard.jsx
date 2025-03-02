@@ -1,24 +1,23 @@
 import React from "react";
-import EmployeeNavbar from "../components/EmployeeDashboard/EmployeeNavbar";
-import Employeesidebar from "../components/EmployeeDashboard/Employeesidebar";
+import AdminNavbar from "../components/AdminDashboard/AdminNavbar";
+import AdminSidebar from "../components/AdminDashboard/AdminSidebar";
 import { Outlet } from "react-router-dom";
 
-const EmployeeDashboard = () => {
+const AdminDashboard = () => {
   return (
     <div className="flex h-screen bg-gray-900">
       {/* Sidebar */}
       <div className="w-64 bg-gray-800">
-        <Employeesidebar />
+        <AdminSidebar />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Navbar */}
-        <EmployeeNavbar />
+        <AdminNavbar />
 
         {/* Content Area */}
         <div className="flex-1 p-6 mt-16 overflow-y-auto">
-          {/* The `mt-16` ensures content starts below the navbar */}
           <Outlet />
         </div>
       </div>
@@ -26,4 +25,4 @@ const EmployeeDashboard = () => {
   );
 };
 
-export default EmployeeDashboard;
+export default AdminDashboard;

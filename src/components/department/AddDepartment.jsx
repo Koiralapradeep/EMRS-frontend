@@ -1,22 +1,38 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const AddDepartment = () => {
-  const [form, setForm] = useState({ departmentName: '', departmentCode: '', description: '' });
-  const [error, setError] = useState('');
+  const [form, setForm] = useState({ departmentName: "", departmentCode: "", description: "" });
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
+
+    const token = localStorage.getItem("token");
+    const companyId = localStorage.getItem("companyId"); // Ensure companyId is retrieved
+
+    if (!companyId) {
+      setError("Error: No company assigned. Please log in again.");
+      return;
+    }
 
     try {
-      await axios.post('http://localhost:3000/api/departments', form);
-      navigate('/manager-dashboard/department'); // Redirect to department list
+      await axios.post(
+        "http://localhost:3000/api/departments",
+        { ...form, companyId }, // Attach companyId to the request
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      navigate("/manager-dashboard/department"); // Redirect to department list
     } catch (err) {
-      console.error('Error adding department:', err);
-      setError(err.response?.data?.error || 'Failed to add department.');
+      console.error("Error adding department:", err);
+      setError(err.response?.data?.error || "Failed to add department.");
     }
   };
 

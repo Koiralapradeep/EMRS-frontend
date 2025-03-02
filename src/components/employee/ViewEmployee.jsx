@@ -3,22 +3,34 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const ViewEmployee = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // expects the Employee document's _id
   const navigate = useNavigate();
   const [employee, setEmployee] = useState(null);
 
   useEffect(() => {
     const fetchEmployee = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/api/employee/${id}`);
-        setEmployee(response.data.employee);
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No token found. Redirecting to login.");
+          navigate("/login");
+          return;
+        }
+        // Call GET /api/employee/:id
+        const response = await axios.get(`http://localhost:3000/api/employee/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.data.success) {
+          setEmployee(response.data.employee);
+        } else {
+          console.error("Error fetching employee:", response.data.error);
+        }
       } catch (error) {
-        console.error("Error fetching employee:", error);
+        console.error("Error fetching employee:", error.response?.data || error);
       }
     };
-
     fetchEmployee();
-  }, [id]);
+  }, [id, navigate]);
 
   if (!employee) {
     return <p className="text-white text-center">Loading...</p>;
@@ -27,7 +39,9 @@ const ViewEmployee = () => {
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-lg w-1/2 text-gray-800">
-        <h2 className="text-2xl font-bold mb-6 text-center border-b pb-4">Employee Details</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center border-b pb-4">
+          Employee Details
+        </h2>
         <div className="flex items-start space-x-8">
           {/* Employee Photo */}
           {employee.image ? (
@@ -41,7 +55,6 @@ const ViewEmployee = () => {
               No Image
             </div>
           )}
-
           {/* Employee Information */}
           <div className="text-left flex-grow">
             <div className="mb-4">
@@ -66,9 +79,6 @@ const ViewEmployee = () => {
             <div className="mb-4">
               <span className="font-bold">Department:</span>{" "}
               {employee.department?.departmentName || "N/A"}
-            </div>
-            <div className="mb-4">
-              <span className="font-bold">Role:</span> {employee.role || "N/A"}
             </div>
           </div>
         </div>

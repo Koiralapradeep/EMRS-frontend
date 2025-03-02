@@ -11,19 +11,29 @@ const ViewLeave = () => {
   const [error, setError] = useState("");
 
   // Retrieve the userId from the location state
-  const userId = location.state?.userId;
+  const employeeId = location.state?.userId;
 
   useEffect(() => {
     const fetchLeaves = async () => {
-      if (!userId) {
-        setError("No user ID provided.");
+      if (!employeeId) {
+        setError("No employee ID provided.");
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("No token provided. Please login again.");
         return;
       }
 
       try {
-        const response = await axios.get("http://localhost:3000/api/leave", {
-          params: { userId }, // Pass userId as query parameter
-        });
+        // Call the "employee/:employeeId" route
+        const response = await axios.get(
+          `http://localhost:3000/api/leave/employee/${employeeId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         if (response.data.success) {
           setLeaves(response.data.leaves);
@@ -38,7 +48,7 @@ const ViewLeave = () => {
     };
 
     fetchLeaves();
-  }, [userId]);
+  }, [employeeId]);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -47,7 +57,7 @@ const ViewLeave = () => {
       const lowerCaseQuery = searchQuery.toLowerCase();
       const filtered = leaves.filter((leave) =>
         leave.leaveType.toLowerCase().includes(lowerCaseQuery) ||
-        leave.description.toLowerCase().includes(lowerCaseQuery) ||
+        leave.description?.toLowerCase().includes(lowerCaseQuery) ||
         leave.status?.toLowerCase().includes(lowerCaseQuery) ||
         new Date(leave.fromDate).toLocaleDateString().includes(lowerCaseQuery) ||
         new Date(leave.toDate).toLocaleDateString().includes(lowerCaseQuery)
@@ -67,6 +77,7 @@ const ViewLeave = () => {
           Back
         </button>
       </div>
+
       <input
         type="text"
         placeholder="Search leaves..."
@@ -74,6 +85,7 @@ const ViewLeave = () => {
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-64 p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 mb-4"
       />
+
       <div className="overflow-x-auto">
         <table className="table-auto w-full bg-gray-800 rounded-lg text-white">
           <thead>
@@ -93,13 +105,17 @@ const ViewLeave = () => {
                 <tr key={leave._id} className="hover:bg-gray-700">
                   <td className="px-4 py-2">{index + 1}</td>
                   <td className="px-4 py-2">{leave.leaveType}</td>
-                  <td className="px-4 py-2">{new Date(leave.fromDate).toLocaleDateString()}</td>
-                  <td className="px-4 py-2">{new Date(leave.toDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">
+                    {new Date(leave.fromDate).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-2">
+                    {new Date(leave.toDate).toLocaleDateString()}
+                  </td>
                   <td className="px-4 py-2">{leave.description || "N/A"}</td>
                   <td className="px-4 py-2">
-                    {leave.appliedDate !== "N/A" ? 
-                    new Date(leave.appliedDate).toLocaleDateString() 
-                    : "N/A"}
+                    {leave.appliedDate
+                      ? new Date(leave.appliedDate).toLocaleDateString()
+                      : "N/A"}
                   </td>
                   <td className="px-4 py-2">
                     <span

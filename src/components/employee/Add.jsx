@@ -1,11 +1,11 @@
-// Add.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { fetchDepartments } from "../employee/EmployeeHelper";
+import { fetchDepartments } from "../employee/EmployeeHelper"; // Or wherever your helper is
 import { useNavigate } from "react-router-dom";
 
 const Add = () => {
   const [departments, setDepartments] = useState([]);
+  const [companyName, setCompanyName] = useState("Loading...");
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
@@ -19,8 +19,7 @@ const Add = () => {
     designation: "",
     department: "",
     password: "",
-    role: "",
-    image: null,
+    image: null, // Removed role from here
   });
 
   useEffect(() => {
@@ -33,6 +32,13 @@ const Add = () => {
         setDepartments([]);
       }
     };
+
+    const fetchCompanyName = () => {
+      const storedCompany = localStorage.getItem("companyName") || "Unknown Company";
+      setCompanyName(storedCompany);
+    };
+
+    fetchCompanyName();
     getDepartments();
   }, []);
 
@@ -40,27 +46,33 @@ const Add = () => {
     e.preventDefault();
     setError("");
 
+    // Build form data
     const formData = new FormData();
     Object.keys(form).forEach((key) => {
-      if (key === "image") {
-        // Append the image file only if it exists
-        if (form[key]) formData.append(key, form[key]);
+      if (key === "image" && form[key]) {
+        formData.append(key, form[key]);
       } else {
         formData.append(key, form[key]);
       }
     });
 
     try {
+      const token = localStorage.getItem("token");
+
       const response = await axios.post(
         "http://localhost:3000/api/employee/add",
         formData,
         {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`, // Make sure you have a valid manager token
+          },
         }
       );
 
       if (response.data.success) {
-        navigate("/manager-dashboard/employee");
+        // Successfully added employee
+        navigate("/manager-dashboard/employee"); // Or wherever you want to go
       } else {
         setError(response.data.error || "Failed to add employee.");
       }
@@ -73,7 +85,10 @@ const Add = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <div className="max-w-6xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6 text-center">Add Employee</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">
+          Add Employee - <span className="text-teal-400">{companyName}</span>
+        </h1>
+
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Full Name */}
           <div>
@@ -192,20 +207,6 @@ const Add = () => {
             />
           </div>
 
-          {/* Role */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Role</label>
-            <select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
-            >
-              <option value="">Select Role</option>
-              <option value="Manager">Manager</option>
-              <option value="Employee">Employee</option>
-            </select>
-          </div>
-
           {/* Upload Image */}
           <div>
             <label className="block text-sm font-medium mb-1">Upload Image</label>
@@ -216,18 +217,18 @@ const Add = () => {
             />
           </div>
 
-          {/* Error Message */}
-          {error && <p className="text-red-500 col-span-2">{error}</p>}
+          {/* Submit Button */}
+          <div className="col-span-2 text-center">
+            <button
+              type="submit"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-base font-medium rounded"
+            >
+              Add Employee
+            </button>
+          </div>
         </form>
-        <div className="mt-6 text-center">
-          <button
-            type="submit"
-            onClick={handleSubmit}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-base font-medium rounded"
-          >
-            Add Employee
-          </button>
-        </div>
+
+        {error && <p className="text-red-500 text-center mt-4">{error}</p>}
       </div>
     </div>
   );

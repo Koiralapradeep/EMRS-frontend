@@ -18,8 +18,21 @@ const EditDepartment = () => {
   // Fetch department details when component loads
   useEffect(() => {
     const fetchDepartment = async () => {
+      const token = localStorage.getItem("token"); // Get token from localStorage
+      console.log("DEBUG - Token being sent:", token); // Debugging
+
+      if (!token) {
+        console.error("ERROR - No token found in localStorage.");
+        setError("Unauthorized: Please log in again.");
+        setLoading(false);
+        return;
+      }
+
       try {
-        const response = await axios.get(`http://localhost:3000/api/departments/${id}`);
+        const response = await axios.get(`http://localhost:3000/api/departments/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }, // Send token in headers
+        });
+
         setForm({
           departmentName: response.data.departmentName,
           departmentCode: response.data.departmentCode,
@@ -40,8 +53,19 @@ const EditDepartment = () => {
     e.preventDefault();
     setError('');
 
+    const token = localStorage.getItem("token"); // Get token for update request
+    if (!token) {
+      console.error("ERROR - No token found in localStorage.");
+      setError("Unauthorized: Please log in again.");
+      return;
+    }
+
     try {
-      await axios.put(`http://localhost:3000/api/departments/${id}`, form);
+      await axios.put(
+        `http://localhost:3000/api/departments/${id}`, 
+        form,
+        { headers: { Authorization: `Bearer ${token}` } } // Send token in headers
+      );
       navigate('/manager-dashboard/department'); // Redirect back to the departments list
     } catch (err) {
       console.error('Error updating department:', err);

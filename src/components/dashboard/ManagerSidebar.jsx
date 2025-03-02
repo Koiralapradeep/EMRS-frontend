@@ -29,7 +29,6 @@ const Managersidebar = ({ visible, toggleSidebar }) => {
     >
       {/* Sidebar Header */}
       <div className="flex items-center justify-between bg-white-600 p-4">
-        <h1 className="font-bold text-lg">Manager Panel</h1>
         <button
           onClick={toggleSidebar}
           className="text-white text-2xl focus:outline-none md:hidden"

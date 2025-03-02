@@ -1,3 +1,4 @@
+// src/components/LeaveList.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -8,18 +9,17 @@ const LeaveList = () => {
   const [filteredLeaves, setFilteredLeaves] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState("");
-
   const user = JSON.parse(localStorage.getItem("user"));
-  const userId = user?._id;
 
   useEffect(() => {
     const fetchLeaves = async () => {
       try {
-        const response = await axios.get("http://localhost:3000/api/leave/", {
-          params: { userId },
+        const response = await axios.get("http://localhost:3000/api/leave", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-
         if (response.data.success) {
+          // The API already filters leaves by role:
+          // Employees see only their own leaves.
           setLeaves(response.data.leaves);
           setFilteredLeaves(response.data.leaves);
         } else {
@@ -31,12 +31,12 @@ const LeaveList = () => {
       }
     };
 
-    if (userId) {
+    if (user) {
       fetchLeaves();
     } else {
       setError("User is not logged in.");
     }
-  }, [userId]);
+  }, [user]);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -65,6 +65,7 @@ const LeaveList = () => {
           Add Leave
         </button>
       </div>
+
       <input
         type="text"
         placeholder="Search leaves..."
@@ -72,6 +73,7 @@ const LeaveList = () => {
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-64 p-2 rounded bg-gray-800 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 mb-4"
       />
+
       <div className="overflow-x-auto">
         <table className="table-auto w-full text-left border border-gray-700 bg-gray-800 text-white rounded-lg">
           <thead className="bg-gray-700 text-gray-300">
@@ -99,9 +101,7 @@ const LeaveList = () => {
                   </td>
                   <td className="px-4 py-2 border border-gray-600">{leave.description || "N/A"}</td>
                   <td className="px-4 py-2 border border-gray-600">
-                    {leave.appliedDate
-                      ? new Date(leave.appliedDate).toLocaleDateString()
-                      : "N/A"}
+                    {leave.appliedDate ? new Date(leave.appliedDate).toLocaleDateString() : "N/A"}
                   </td>
                   <td className="px-4 py-2 border border-gray-600">
                     <span
