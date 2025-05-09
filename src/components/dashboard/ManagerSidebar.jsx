@@ -9,6 +9,8 @@ import {
   faCog,
   faBars,
   faComments,
+  faClock,
+  faCalendarDay
 } from '@fortawesome/free-solid-svg-icons';
 
 const Managersidebar = ({ visible, toggleSidebar }) => {
@@ -18,7 +20,10 @@ const Managersidebar = ({ visible, toggleSidebar }) => {
     { name: 'Employee', icon: faUsers, path: '/manager-dashboard/employee' },
     { name: 'Leave', icon: faCalendarAlt, path: '/manager-dashboard/leave' },
     { name: 'feedback', icon: faComments, path: '/manager-dashboard/feedback' },
-    { name: 'Setting', icon: faCog, path: '/manager-dashboard/setting' },
+    { name: 'Availability',icon: faClock , path: '/manager-dashboard/availability'},
+    { name: 'Holidays', icon: faCalendarDay, path: '/manager-dashboard/holidays' },
+    { name: 'Settings', icon: faCog, path: '/manager-dashboard/setting' },
+
   ];
 
   return (

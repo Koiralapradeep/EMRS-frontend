@@ -1,8 +1,9 @@
-// src/components/ManagerLeave.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useAuth } from "../../Context/authContext"; // Import useAuth to get user details
 
 const ManagerLeave = () => {
+  const { user } = useAuth(); // Get user details from auth context
   const [leaves, setLeaves] = useState([]);
   const [filteredLeaves, setFilteredLeaves] = useState([]);
   const [error, setError] = useState("");
@@ -12,31 +13,44 @@ const ManagerLeave = () => {
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
-    fetchLeaves();
-  }, []);
+    if (user?.companyId) {
+      fetchLeaves();
+    } else {
+      setError("User company ID not found.");
+    }
+  }, [user]);
 
-  // Fetch all leaves from the server
+  // Fetch all leaves for the company
   const fetchLeaves = async () => {
     try {
-      const response = await axios.get("http://localhost:3000/api/leave", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      console.log("Fetching leaves for companyId:", user.companyId);
+      const token = localStorage.getItem("token") || localStorage.getItem("jwt");
+      console.log("Token for fetch:", token);
+
+      const response = await axios.get(
+        `http://localhost:3000/api/leave/company/${user.companyId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
+        }
+      );
+
+      console.log("Fetch leaves response:", response.data);
 
       // Check if success is true and leaves is an array
       if (response.data.success && Array.isArray(response.data.leaves)) {
         setLeaves(response.data.leaves);
         setFilteredLeaves(response.data.leaves);
       } else {
-        // If not successful or leaves is not an array, reset to empty arrays
         setLeaves([]);
         setFilteredLeaves([]);
-        setError(response.data.error || "Failed to fetch leave requests.");
+        setError(response.data.message || "Failed to fetch leave requests.");
       }
     } catch (err) {
-      // On error, reset arrays and set error message
+      console.error("Error fetching leaves:", err.response?.data || err.message);
       setLeaves([]);
       setFilteredLeaves([]);
-      setError("Internal Server Error.");
+      setError("Failed to fetch leave requests.");
     }
   };
 
@@ -82,10 +96,12 @@ const ManagerLeave = () => {
   // Delete leave
   const deleteLeave = async (leaveId) => {
     try {
+      const token = localStorage.getItem("token") || localStorage.getItem("jwt");
       const response = await axios.delete(
         `http://localhost:3000/api/leave/${leaveId}`,
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
         }
       );
       if (response.data.success) {
@@ -104,10 +120,14 @@ const ManagerLeave = () => {
   // Approve/Reject leave
   const updateLeaveStatus = async (leaveId, status) => {
     try {
+      const token = localStorage.getItem("token") || localStorage.getItem("jwt");
       const response = await axios.put(
         `http://localhost:3000/api/leave/${leaveId}/status`,
         { status },
-        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
+        }
       );
 
       if (response.data.success) {

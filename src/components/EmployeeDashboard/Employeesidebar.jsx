@@ -26,9 +26,9 @@ const Employeesidebar = () => {
     },
     { name: "Leave", path: "/employee-dashboard/Leave", icon: faCalendarAlt },
     { name: "Feedback", path: "/employee-dashboard/feedback", icon: faComments },
+    { name: "Availability", path: "/employee-dashboard/availability", icon: faClock },
     { name: "Shifts", path: "/employee-dashboard/shifts", icon: faClock },
     { name: "Settings", path: "/employee-dashboard/settings", icon: faCog },
-
   ];
 
   return (

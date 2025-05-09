@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const UserContext = createContext();
 
@@ -7,38 +7,52 @@ export const useAuth = () => useContext(UserContext);
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Pull user from localStorage if available
   const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem("user");
     return storedUser ? JSON.parse(storedUser) : null;
   });
 
-  // Pull companyId and companyName from localStorage if available
   const [companyId, setCompanyId] = useState(() => localStorage.getItem("companyId") || null);
   const [companyName, setCompanyName] = useState(() =>
     localStorage.getItem("companyName") || "Unknown Company"
   );
+  const [departmentId, setDepartmentId] = useState(() => localStorage.getItem("departmentId") || null);
+  const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      if (isTokenExpired(token)) {
-        console.warn("Token expired, logging out.");
-        logout();
-      } else if (!user) {
-        // If we have a token but no user in state, fetch the user
-        fetchUserProfile();
+    const initializeAuth = async () => {
+      if (isLoggingOut) {
+        console.log("Skipping initialization due to logout in progress.");
+        setLoading(false);
+        return;
       }
-    } else {
-      console.warn("No token found. Redirecting to login.");
-      navigate("/login");
-    }
-  }, [navigate]);
+
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      if (token) {
+        if (isTokenExpired(token)) {
+          console.warn("Token expired, logging out.");
+          await logout();
+        } else if (!user) {
+          await fetchUserProfile();
+        }
+      } else if (!["/login", "/forgot-password", "/reset-password"].includes(location.pathname)) {
+        console.warn("No token found. Redirecting to login from:", location.pathname);
+        navigate("/login", { replace: true });
+      } else {
+        console.log("No token found, but on public route:", location.pathname);
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
+  }, [navigate, user, isLoggingOut, location.pathname]);
 
   const isTokenExpired = (token) => {
     try {
-      // decode the middle part of JWT
       const decodedToken = JSON.parse(atob(token.split(".")[1]));
       return Date.now() > decodedToken.exp * 1000;
     } catch (error) {
@@ -48,9 +62,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const fetchUserProfile = async () => {
+    if (isLoggingOut) {
+      console.log("Skipping fetchUserProfile due to logout in progress.");
+      return;
+    }
+
     const token = localStorage.getItem("token");
     if (!token) {
-      console.warn("No token found. Redirecting to login.");
+      console.warn("No token found in fetchUserProfile. Redirecting to login.");
       navigate("/login");
       return;
     }
@@ -63,10 +82,17 @@ export const AuthProvider = ({ children }) => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch user (Status: ${response.status})`);
+        if (response.status === 401) {
+          console.warn("Token invalid or expired, logging out.");
+          await logout();
+        } else {
+          console.error(`Failed to fetch user (Status: ${response.status})`);
+        }
+        return;
       }
 
       const data = await response.json();
@@ -75,36 +101,76 @@ export const AuthProvider = ({ children }) => {
       if (data.user) {
         console.log("Extracted user data:", data.user);
 
-        // Update state and localStorage
+        if (isLoggingOut) {
+          console.log("User data received, but logout in progress. Ignoring.");
+          return;
+        }
+
         setUser(data.user);
         localStorage.setItem("user", JSON.stringify(data.user));
 
-        if (data.user.companyId) {
-          console.log("Storing companyId:", data.user.companyId);
-          localStorage.setItem("companyId", data.user.companyId);
-          setCompanyId(data.user.companyId);
+        if (data.user.role === "Admin") {
+          console.log("Admin user detected, setting default company values.");
+          localStorage.setItem("companyId", "");
+          localStorage.setItem("companyName", "No Company");
+          setCompanyId("");
+          setCompanyName("No Company");
+          localStorage.setItem("departmentId", "");
+          setDepartmentId(null);
         } else {
-          console.warn("ERROR: `companyId` is missing from user data!");
-        }
+          if (data.user.companyId) {
+            console.log("Storing companyId:", data.user.companyId);
+            localStorage.setItem("companyId", data.user.companyId);
+            setCompanyId(data.user.companyId);
+          } else {
+            console.warn("ERROR: `companyId` is missing from user data!");
+          }
 
-        if (data.user.companyName) {
-          console.log("Storing companyName:", data.user.companyName);
-          localStorage.setItem("companyName", data.user.companyName);
-          setCompanyName(data.user.companyName);
-        } else {
-          console.warn("ERROR: `companyName` is missing from user data!");
+          if (data.user.companyName) {
+            console.log("Storing companyName:", data.user.companyName);
+            localStorage.setItem("companyName", data.user.companyName);
+            setCompanyName(data.user.companyName);
+          } else {
+            console.warn("ERROR: `companyName` is missing from user data!");
+          }
+
+          // Fetch departmentId from the employees endpoint
+          const employeeResponse = await fetch(`http://localhost:3000/api/employees/user/${data.user._id}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          });
+
+          if (employeeResponse.ok) {
+            const employeeData = await employeeResponse.json();
+            if (employeeData.employee && employeeData.employee.department) {
+              console.log("Storing departmentId:", employeeData.employee.department);
+              localStorage.setItem("departmentId", employeeData.employee.department);
+              setDepartmentId(employeeData.employee.department);
+            } else {
+              console.warn("No department found for user in employees collection");
+              localStorage.setItem("departmentId", "");
+              setDepartmentId(null);
+            }
+          } else {
+            console.warn("Failed to fetch employee data for departmentId");
+            localStorage.setItem("departmentId", "");
+            setDepartmentId(null);
+          }
         }
 
         console.log("FINAL STORED VALUES:");
         console.log("Stored Company ID:", localStorage.getItem("companyId"));
         console.log("Stored Company Name:", localStorage.getItem("companyName"));
+        console.log("Stored Department ID:", localStorage.getItem("departmentId"));
       } else {
         console.warn("No user data received, logging out.");
-        logout();
+        await logout();
       }
     } catch (err) {
-      console.error("Error fetching user:", err);
-      logout();
+      console.error("Error fetching user:", err.message);
     }
   };
 
@@ -116,35 +182,75 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    // Store token and user
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
 
-    // Also store company fields separately
-    if (user.companyId) {
-      console.log("Storing companyId:", user.companyId);
-      localStorage.setItem("companyId", user.companyId);
-      setCompanyId(user.companyId);
+    if (user.role === "Admin") {
+      console.log("Admin user detected, setting default company values.");
+      localStorage.setItem("companyId", "");
+      localStorage.setItem("companyName", "No Company");
+      setCompanyId("");
+      setCompanyName("No Company");
+      localStorage.setItem("departmentId", "");
+      setDepartmentId(null);
     } else {
-      console.warn("ERROR - No `companyId` found in user data!");
-    }
+      if (user.companyId) {
+        console.log("Storing companyId:", user.companyId);
+        localStorage.setItem("companyId", user.companyId);
+        setCompanyId(user.companyId);
+      } else {
+        console.warn("ERROR - No `companyId` found in user data!");
+      }
 
-    if (user.companyName) {
-      console.log("Storing companyName:", user.companyName);
-      localStorage.setItem("companyName", user.companyName);
-      setCompanyName(user.companyName);
-    } else {
-      console.warn("ERROR - No `companyName` found in user data!");
+      if (user.companyName) {
+        console.log("Storing companyName:", user.companyName);
+        localStorage.setItem("companyName", user.companyName);
+        setCompanyName(user.companyName);
+      } else {
+        console.warn("ERROR - No `companyName` found in user data!");
+      }
+
+      // Fetch departmentId from the employees endpoint during login
+      fetch(`http://localhost:3000/api/employees/user/${user._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      })
+        .then((response) => {
+          if (response.ok) {
+            return response.json();
+          } else {
+            throw new Error("Failed to fetch employee data");
+          }
+        })
+        .then((employeeData) => {
+          if (employeeData.employee && employeeData.employee.department) {
+            console.log("Storing departmentId:", employeeData.employee.department);
+            localStorage.setItem("departmentId", employeeData.employee.department);
+            setDepartmentId(employeeData.employee.department);
+          } else {
+            console.warn("No department found for user in employees collection");
+            localStorage.setItem("departmentId", "");
+            setDepartmentId(null);
+          }
+        })
+        .catch((err) => {
+          console.warn("Error fetching departmentId during login:", err.message);
+          localStorage.setItem("departmentId", "");
+          setDepartmentId(null);
+        });
     }
 
     console.log("FINAL STORED VALUES:");
     console.log("Company ID:", localStorage.getItem("companyId"));
     console.log("Company Name:", localStorage.getItem("companyName"));
+    console.log("Department ID:", localStorage.getItem("departmentId"));
 
-    // Navigate based on role
     if (user.role === "Admin") {
-      navigate(`/admin-dashboard?companyId=${user.companyId}`, { replace: true });
+      navigate(`/admin-dashboard`, { replace: true });
     } else if (user.role === "Manager") {
       navigate(`/manager-dashboard?companyId=${user.companyId}`, { replace: true });
     } else if (user.role === "Employee") {
@@ -155,26 +261,73 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     console.log("Logging out user...");
+    setIsLoggingOut(true);
+    setLoading(true);
 
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("companyId");
-    localStorage.removeItem("companyName");
+    try {
+      const response = await fetch("http://localhost:3000/api/auth/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
 
-    setUser(null);
-    setCompanyId(null);
-    setCompanyName("Unknown Company");
+      if (!response.ok) {
+        console.error(`Failed to log out on server (Status: ${response.status})`);
+      } else {
+        console.log("Server session destroyed successfully.");
+      }
+    } catch (error) {
+      console.error("Error during logout API call:", error.message);
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("companyId");
+      localStorage.removeItem("companyName");
+      localStorage.removeItem("departmentId");
 
-    navigate("/login", { replace: true });
+      console.log("After logout - localStorage:");
+      console.log("Token:", localStorage.getItem("token"));
+      console.log("User:", localStorage.getItem("user"));
+      console.log("Company ID:", localStorage.getItem("companyId"));
+      console.log("Company Name:", localStorage.getItem("companyName"));
+      console.log("Department ID:", localStorage.getItem("departmentId"));
 
-    console.log("User logged out successfully.");
+      setUser(null);
+      setCompanyId(null);
+      setCompanyName("Unknown Company");
+      setDepartmentId(null);
+
+      document.cookie = "connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+      console.log("Cleared connect.sid cookie on frontend.");
+
+      if (window.notificationSocket) {
+        window.notificationSocket.disconnect();
+        window.notificationSocket = null;
+        console.log("Socket.IO disconnected from NotificationContext.");
+      }
+
+      if (window.socket) {
+        window.socket.disconnect();
+        console.log("Socket.IO disconnected (window.socket).");
+      }
+
+      setTimeout(() => {
+        setLoading(false);
+        navigate("/login", { replace: true });
+        console.log("User logged out successfully.");
+        setIsLoggingOut(false);
+      }, 100);
+    }
   };
 
-  // Ensure that if user is already in localStorage, company details are also set
   useEffect(() => {
     if (user) {
+      console.log('User object in authContext:', JSON.stringify(user, null, 2));
       const storedCompanyId = localStorage.getItem("companyId");
       if (user.companyId && storedCompanyId !== user.companyId) {
         localStorage.setItem("companyId", user.companyId);
@@ -189,17 +342,19 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
-  // Debug: log whenever companyId, companyName, or user changes
   useEffect(() => {
     console.log("Checking LocalStorage after state updates:");
     console.log("Stored Token:", localStorage.getItem("token"));
     console.log("Stored User:", localStorage.getItem("user"));
     console.log("Stored Company ID:", localStorage.getItem("companyId"));
     console.log("Stored Company Name:", localStorage.getItem("companyName"));
-  }, [companyId, companyName, user]);
+    console.log("Stored Department ID:", localStorage.getItem("departmentId"));
+  }, [companyId, companyName, departmentId, user]);
 
   return (
-    <UserContext.Provider value={{ user, companyId, companyName, login, logout, setUser }}>
+    <UserContext.Provider
+      value={{ user, companyId, companyName, departmentId, login, logout, setUser, loading, isLoggingOut }}
+    >
       {children}
     </UserContext.Provider>
   );

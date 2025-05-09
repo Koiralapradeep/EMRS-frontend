@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { fetchDepartments } from "../employee/EmployeeHelper"; // Or wherever your helper is
+import { fetchDepartments } from "../employee/EmployeeHelper";
 import { useNavigate } from "react-router-dom";
 
 const Add = () => {
@@ -19,7 +19,7 @@ const Add = () => {
     designation: "",
     department: "",
     password: "",
-    image: null, // Removed role from here
+    image: null,
   });
 
   useEffect(() => {

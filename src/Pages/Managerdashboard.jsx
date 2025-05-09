@@ -11,12 +11,14 @@ const ManagerDashboard = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Navbar */}
-      <Navbar />
+    <div className="flex flex-col h-screen">
+      {/* Navbar - Fixed at the top */}
+      <div className="fixed top-0 left-0 w-full z-30">
+        <Navbar />
+      </div>
 
-      {/* Main Layout */}
-      <div className="flex flex-1">
+      {/* Main Layout - Adjusted for Navbar height */}
+      <div className="flex flex-1 pt-16"> {/* pt-16 to account for navbar height */}
         {/* Sidebar */}
         <Managersidebar visible={sidebarVisible} toggleSidebar={toggleSidebar} />
 

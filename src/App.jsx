@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import React from 'react';
 import Login from "./Pages/Login";
 import ManagerDashboard from "./Pages/ManagerDashboard";
 import EmployeeDashboard from "./Pages/EmployeeDashboard";
@@ -15,7 +16,7 @@ import AddEmployee from "./components/employee/Add";
 import EditEmployee from "./components/employee/EditEmployee";
 import ViewEmployee from "./components/employee/ViewEmployee";
 import Summary from "./components/EmployeeDashboard/Summary";
-import View from './components/EmployeeDashboard/View';
+import View from "./components/EmployeeDashboard/View";
 import EmployeeSettings from "./components/EmployeeDashboard/Settings";
 import ManagerLeave from "./components/Leave/ManagerLeave";
 import ManagerSettings from "./components/dashboard/ManagerSettings";
@@ -28,13 +29,28 @@ import ManagerFeedback from "./components/dashboard/ManagerFeedback";
 import AdminSummary from "./components/AdminDashboard/AdminSummary";
 import Companies from "./components/AdminDashboard/Companies";
 import AddCompany from "./components/AdminDashboard/AddCompany";
-import EditCompany from './components/AdminDashboard/EditCompany';
+import EditCompany from "./components/AdminDashboard/EditCompany";
+import { NotificationProvider } from "./Context/NotificationContext";
+import AvailabilityForm from "./components/EmployeeDashboard/AvailabilityForm";
+import Availability from './components/EmployeeDashboard/Availability';
+import ManagerAvailability from "./components/dashboard/ManagerAvailability";
+import ForgotPassword from "./Pages/ForgotPassword";
+import ResetPassword from './Pages/ResetPassword';
+import Holidays from "./components/dashboard/Holidays";
+import EditAvailabilities from "./components/EmployeeDashboard/EditAvailability";
+import ShiftRequirements from "./components/EmployeeDashboard/ShiftRequirements";
+import EmployeeShifts from './components/EmployeeDashboard/EmployeeShifts';
 
 function App() {
   return (
     <Routes>
-      {/*  Login Page */}
+      {/* Login Page */}
       <Route path="/login" element={<Login />} />
+
+       {/* Forgot Password Page */}
+       <Route path="/forgot-password" element={<ForgotPassword />} />
+
+       <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Admin Routes (Protected) */}
       <Route
@@ -42,7 +58,9 @@ function App() {
         element={
           <PrivateRoutes>
             <RoleBasedRoute requiredRoles={["Admin"]}>
-              <AdminDashboard />
+              <NotificationProvider>
+                <AdminDashboard />
+              </NotificationProvider>
             </RoleBasedRoute>
           </PrivateRoutes>
         }
@@ -54,18 +72,19 @@ function App() {
         <Route path="*" element={<Navigate to="/admin-dashboard" />} />
       </Route>
 
-      {/*  Manager Routes (Protected) */}
+      {/* Manager Routes (Protected) */}
       <Route
         path="/manager-dashboard/*"
         element={
           <PrivateRoutes>
             <RoleBasedRoute requiredRoles={["Manager"]}>
-              <ManagerDashboard />
+              <NotificationProvider>
+                <ManagerDashboard />
+              </NotificationProvider>
             </RoleBasedRoute>
           </PrivateRoutes>
         }
       >
-        {/*  Default Nested Route */}
         <Route index element={<ManagerSummary />} />
         <Route path="summary" element={<ManagerSummary />} />
         <Route path="department" element={<Departments />} />
@@ -80,22 +99,25 @@ function App() {
         <Route path="detail" element={<LeaveDetail />} />
         <Route path="view-leave" element={<ViewLeave />} />
         <Route path="feedback" element={<ManagerFeedback />} />
-        {/*  Redirect unknown routes to summary */}
+        <Route path="availability" element={<ManagerAvailability />} />
+        <Route path="Holidays" element={<Holidays />} />
+        <Route path="shift-requirements" element={<ShiftRequirements />} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 
-      {/*  Employee Routes (Protected) */}
+      {/* Employee Routes (Protected) */}
       <Route
         path="/employee-dashboard/*"
         element={
           <PrivateRoutes>
             <RoleBasedRoute requiredRoles={["Employee"]}>
-              <EmployeeDashboard />
+              <NotificationProvider>
+                <EmployeeDashboard />
+              </NotificationProvider>
             </RoleBasedRoute>
           </PrivateRoutes>
         }
       >
-        {/*  Default Nested Route */}
         <Route index element={<Summary />} />
         <Route path="summary" element={<Summary />} />
         <Route path="profile/:userId" element={<View />} />
@@ -103,14 +125,17 @@ function App() {
         <Route path="add-leave" element={<AddLeave />} />
         <Route path="settings" element={<EmployeeSettings />} />
         <Route path="feedback" element={<EmployeeFeedback />} />
-        {/*  Redirect unknown routes to summary */}
+        <Route path="availability" element={<Availability/>} />
+        <Route path="add-availability" element={<AvailabilityForm />} /> 
+        <Route path="edit-availability/:id" element={<EditAvailabilities />} />
+        <Route path="shifts" element={<EmployeeShifts />} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 
       {/* Unauthorized Page */}
       <Route path="/unauthorized" element={<UnAuthorized />} />
 
-      {/*  Catch-all Redirect to Login */}
+      {/* Catch-all Redirect to Login */}
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );

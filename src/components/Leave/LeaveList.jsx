@@ -1,4 +1,3 @@
-// src/components/LeaveList.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -14,20 +13,44 @@ const LeaveList = () => {
   useEffect(() => {
     const fetchLeaves = async () => {
       try {
-        const response = await axios.get("http://localhost:3000/api/leave", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        if (response.data.success) {
-          // The API already filters leaves by role:
-          // Employees see only their own leaves.
+        if (!user?._id) {
+          setError("User ID not found. Please log in again.");
+          console.error("User ID not found in localStorage:", user);
+          return;
+        }
+
+        console.log("Fetching leaves for userId:", user._id);
+        const token = localStorage.getItem("token") || localStorage.getItem("jwt");
+        if (!token) {
+          setError("Authentication token not found. Please log in again.");
+          console.error("Token not found in localStorage");
+          return;
+        }
+        console.log("Token for fetch:", token);
+
+        const response = await axios.get(
+          `http://localhost:3000/api/leave/employee/${user._id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true,
+          }
+        );
+
+        console.log("Fetch leaves response:", response.data);
+
+        if (response.data.success && Array.isArray(response.data.leaves)) {
           setLeaves(response.data.leaves);
           setFilteredLeaves(response.data.leaves);
         } else {
-          setError(response.data.error || "Failed to fetch leave requests.");
+          setLeaves([]);
+          setFilteredLeaves([]);
+          setError(response.data.message || "Failed to fetch leave requests.");
         }
       } catch (err) {
-        console.error("Error fetching leaves:", err);
-        setError("Internal Server Error.");
+        console.error("Error fetching leaves:", err.response?.data || err.message);
+        setLeaves([]);
+        setFilteredLeaves([]);
+        setError("Failed to fetch leave requests.");
       }
     };
 
@@ -35,6 +58,7 @@ const LeaveList = () => {
       fetchLeaves();
     } else {
       setError("User is not logged in.");
+      console.error("User not found in localStorage");
     }
   }, [user]);
 
@@ -43,16 +67,54 @@ const LeaveList = () => {
       setFilteredLeaves(leaves);
     } else {
       const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = leaves.filter((leave) =>
-        leave.leaveType.toLowerCase().includes(lowerCaseQuery) ||
-        leave.description.toLowerCase().includes(lowerCaseQuery) ||
-        leave.status?.toLowerCase().includes(lowerCaseQuery) ||
-        new Date(leave.fromDate).toLocaleDateString().includes(lowerCaseQuery) ||
-        new Date(leave.toDate).toLocaleDateString().includes(lowerCaseQuery)
+      const filtered = leaves.filter(
+        (leave) =>
+          (leave.leaveType?.toLowerCase().includes(lowerCaseQuery) || false) ||
+          (leave.description?.toLowerCase().includes(lowerCaseQuery) || false) ||
+          (leave.status?.toLowerCase().includes(lowerCaseQuery) || false) ||
+          (leave.fromDate && new Date(leave.fromDate).toLocaleDateString().includes(lowerCaseQuery)) ||
+          (leave.toDate && new Date(leave.toDate).toLocaleDateString().includes(lowerCaseQuery))
       );
       setFilteredLeaves(filtered);
     }
   }, [searchQuery, leaves]);
+
+  // Function to handle leave cancellation
+  const handleCancelLeave = async (leaveId) => {
+    // Show confirmation popup
+    const confirmCancel = window.confirm("Are you sure you want to cancel this leave request?");
+    if (!confirmCancel) {
+      return; // Exit if user cancels the action
+    }
+
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("jwt");
+      if (!token) {
+        setError("Authentication token not found. Please log in again.");
+        return;
+      }
+
+      const response = await axios.delete(
+        `http://localhost:3000/api/leave/${leaveId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
+        }
+      );
+
+      if (response.data.success) {
+        // Remove the canceled leave from the state
+        const updatedLeaves = leaves.filter((leave) => leave._id !== leaveId);
+        setLeaves(updatedLeaves);
+        setFilteredLeaves(updatedLeaves);
+      } else {
+        setError(response.data.message || "Failed to cancel leave.");
+      }
+    } catch (err) {
+      console.error("Error canceling leave:", err.response?.data || err.message);
+      setError("Failed to cancel leave.");
+    }
+  };
 
   return (
     <div className="flex flex-col p-4 bg-gray-900 min-h-screen">
@@ -85,6 +147,7 @@ const LeaveList = () => {
               <th className="px-4 py-2 border border-gray-600">Description</th>
               <th className="px-4 py-2 border border-gray-600">Applied Date</th>
               <th className="px-4 py-2 border border-gray-600">Status</th>
+              <th className="px-4 py-2 border border-gray-600">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -92,7 +155,7 @@ const LeaveList = () => {
               filteredLeaves.map((leave, index) => (
                 <tr key={leave._id} className="hover:bg-gray-700">
                   <td className="px-4 py-2 border border-gray-600">{index + 1}</td>
-                  <td className="px-4 py-2 border border-gray-600">{leave.leaveType}</td>
+                  <td className="px-4 py-2 border border-gray-600">{leave.leaveType || "N/A"}</td>
                   <td className="px-4 py-2 border border-gray-600">
                     {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : "N/A"}
                   </td>
@@ -116,11 +179,21 @@ const LeaveList = () => {
                       {leave.status || "Pending"}
                     </span>
                   </td>
+                  <td className="px-4 py-2 border border-gray-600">
+                    {leave.status === "Pending" && (
+                      <button
+                        onClick={() => handleCancelLeave(leave._id)}
+                        className="bg-red-500 py-1 px-3 rounded text-white hover:bg-red-600"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="7" className="px-4 py-2 border border-gray-600 text-center text-gray-400">
+                <td colSpan="8" className="px-4 py-2 border border-gray-600 text-center text-gray-400">
                   {error || "No leave requests found."}
                 </td>
               </tr>

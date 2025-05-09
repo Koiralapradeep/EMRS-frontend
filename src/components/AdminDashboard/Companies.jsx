@@ -5,6 +5,9 @@ import axios from "axios";
 const Companies = () => {
   const [companies, setCompanies] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,24 +24,66 @@ const Companies = () => {
         const decodedToken = JSON.parse(atob(token.split(".")[1]));
         if (decodedToken.role !== "Admin") {
           console.error("Unauthorized access. Only Admins can fetch companies.");
+          setError("Unauthorized access. Only Admins can fetch companies.");
           return;
         }
 
-        // Correct endpoint: /api/companies
+        // Fetch companies
         const response = await axios.get("http://localhost:3000/api/company", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         if (response.data.success) {
           setCompanies(response.data.companies);
+        } else {
+          setError("Failed to fetch companies.");
         }
       } catch (error) {
-        console.error("Error fetching companies:", error);
+        console.error("Error fetching companies:", error.message);
+        setError(error.response?.data?.error || "Failed to fetch companies.");
       }
     };
 
     fetchCompanies();
   }, [navigate]);
+
+  // Handle Delete Company
+  const handleDelete = async (companyId) => {
+    if (!window.confirm("Are you sure you want to delete this company?")) {
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("No token found. Redirecting to login.");
+        navigate("/login");
+        return;
+      }
+
+      console.log("Delete company", companyId);
+      const response = await axios.delete(`http://localhost:3000/api/company/${companyId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.data.success) {
+        setCompanies(companies.filter((company) => company._id !== companyId));
+        setSuccess("Company deleted successfully!");
+        console.log("Company deleted successfully:", companyId);
+      } else {
+        setError(response.data.error || "Failed to delete company.");
+      }
+    } catch (error) {
+      console.error("Error deleting company:", error.message);
+      setError(error.response?.data?.error || "Failed to delete company.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Handle Search Filter
   const filteredCompanies = companies.filter((company) =>
@@ -55,6 +100,9 @@ const Companies = () => {
           </button>
         </Link>
       </div>
+
+      {error && <p className="text-red-500 text-sm text-center mb-2">{error}</p>}
+      {success && <p className="text-green-500 text-sm text-center mb-2">{success}</p>}
 
       <div className="mb-4">
         <input
@@ -97,9 +145,10 @@ const Companies = () => {
                     </Link>
                     <button
                       className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                      onClick={() => console.log("Delete company", company._id)}
+                      onClick={() => handleDelete(company._id)}
+                      disabled={loading}
                     >
-                      Delete
+                      {loading ? "Deleting..." : "Delete"}
                     </button>
                   </td>
                 </tr>
