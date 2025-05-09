@@ -111,13 +111,13 @@ const ShiftRequirements = () => {
       });
       const requirements = response.data.find((req) => req.departmentId === selectedDepartment) || {};
       const updatedRequirements = {
-        sunday: requirements.sunday || [],
-        monday: requirements.monday || [],
-        tuesday: requirements.tuesday || [],
-        wednesday: requirements.wednesday || [],
-        thursday: requirements.thursday || [],
-        friday: requirements.friday || [],
-        saturday: requirements.saturday || [],
+        sunday: (requirements.sunday || []).filter(slot => slot.startDay && slot.endDay),
+        monday: (requirements.monday || []).filter(slot => slot.startDay && slot.endDay),
+        tuesday: (requirements.tuesday || []).filter(slot => slot.startDay && slot.endDay),
+        wednesday: (requirements.wednesday || []).filter(slot => slot.startDay && slot.endDay),
+        thursday: (requirements.thursday || []).filter(slot => slot.startDay && slot.endDay),
+        friday: (requirements.friday || []).filter(slot => slot.startDay && slot.endDay),
+        saturday: (requirements.saturday || []).filter(slot => slot.startDay && slot.endDay),
       };
       setShiftRequirements(updatedRequirements);
       setOriginalShiftRequirements(JSON.parse(JSON.stringify(updatedRequirements)));
@@ -374,6 +374,11 @@ const ShiftRequirements = () => {
     const slot = newSlots[index];
     console.log(`Saving shift slot for ${day}, index ${index}:`, slot);
 
+    if (!slot.startDay || !slot.endDay) {
+      toast.error(`Start Day and End Day are required for ${day} slot ${index + 1}.`);
+      return false;
+    }
+
     if (!validateSlot(day, slot, newSlots, index)) {
       return false;
     }
@@ -515,9 +520,7 @@ const ShiftRequirements = () => {
                         <FaPlus className="mr-2" /> Add Slot
                       </button>
                     </div>
-                    {shiftRequirements[day].length === 0 ? (
-                      <p className="text-gray-400 italic">No shift requirements defined for this day.</p>
-                    ) : (
+                    {Array.isArray(shiftRequirements[day]) && shiftRequirements[day].length > 0 ? (
                       <div className="overflow-x-auto">
                         <table className="w-full text-left">
                           <thead>
@@ -534,14 +537,20 @@ const ShiftRequirements = () => {
                           <tbody>
                             {shiftRequirements[day].map((slot, index) => {
                               const isEditing = editingShiftId === `${day}-${index}`;
-                              const startTimeFormatted = dayjs(`2025-01-01 ${slot.startTime}`, 'YYYY-MM-DD HH:mm').format('hh:mm A');
-                              const endTimeFormatted = dayjs(`2025-01-01 ${slot.endTime}`, 'YYYY-MM-DD HH:mm').format('hh:mm A');
+                              const startTimeFormatted = slot.startTime
+                                ? dayjs(`2025-01-01 ${slot.startTime}`, 'YYYY-MM-DD HH:mm').format('hh:mm A')
+                                : 'Invalid Time';
+                              const endTimeFormatted = slot.endTime
+                                ? dayjs(`2025-01-01 ${slot.endTime}`, 'YYYY-MM-DD HH:mm').format('hh:mm A')
+                                : 'Invalid Time';
+                              const displayStartDay = slot.startDay || 'N/A';
+                              const displayEndDay = slot.endDay || 'N/A';
                               return (
                                 <tr key={index} className="border-b border-gray-600 hover:bg-gray-600">
                                   <td className="p-3">
                                     {isEditing ? (
                                       <select
-                                        value={slot.startDay}
+                                        value={slot.startDay || ''}
                                         onChange={(e) => updateShiftSlot(day, index, 'startDay', e.target.value)}
                                         className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
                                         disabled={loading.save}
@@ -553,14 +562,14 @@ const ShiftRequirements = () => {
                                         ))}
                                       </select>
                                     ) : (
-                                      slot.startDay.charAt(0).toUpperCase() + slot.startDay.slice(1)
+                                      displayStartDay.charAt(0).toUpperCase() + displayStartDay.slice(1)
                                     )}
                                   </td>
                                   <td className="p-3">
                                     {isEditing ? (
                                       <input
                                         type="time"
-                                        value={slot.startTime}
+                                        value={slot.startTime || ''}
                                         onChange={(e) => updateShiftSlot(day, index, 'startTime', e.target.value)}
                                         className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
                                         required
@@ -573,7 +582,7 @@ const ShiftRequirements = () => {
                                   <td className="p-3">
                                     {isEditing ? (
                                       <select
-                                        value={slot.endDay}
+                                        value={slot.endDay || ''}
                                         onChange={(e) => updateShiftSlot(day, index, 'endDay', e.target.value)}
                                         className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
                                         disabled={loading.save}
@@ -585,14 +594,14 @@ const ShiftRequirements = () => {
                                         ))}
                                       </select>
                                     ) : (
-                                      slot.endDay.charAt(0).toUpperCase() + slot.endDay.slice(1)
+                                      displayEndDay.charAt(0).toUpperCase() + displayEndDay.slice(1)
                                     )}
                                   </td>
                                   <td className="p-3">
                                     {isEditing ? (
                                       <input
                                         type="time"
-                                        value={slot.endTime}
+                                        value={slot.endTime || ''}
                                         onChange={(e) => updateShiftSlot(day, index, 'endTime', e.target.value)}
                                         className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
                                         required
@@ -605,7 +614,7 @@ const ShiftRequirements = () => {
                                   <td className="p-3">
                                     {isEditing ? (
                                       <select
-                                        value={slot.shiftType}
+                                        value={slot.shiftType || 'Day'}
                                         onChange={(e) => updateShiftSlot(day, index, 'shiftType', e.target.value)}
                                         className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
                                         disabled={loading.save}
@@ -614,7 +623,7 @@ const ShiftRequirements = () => {
                                         <option value="Night">Night</option>
                                       </select>
                                     ) : (
-                                      slot.shiftType
+                                      slot.shiftType || 'N/A'
                                     )}
                                   </td>
                                   <td className="p-3">
@@ -629,7 +638,7 @@ const ShiftRequirements = () => {
                                         disabled={loading.save}
                                       />
                                     ) : (
-                                      slot.minEmployees
+                                      slot.minEmployees || 'N/A'
                                     )}
                                   </td>
                                   <td className="p-3 flex gap-2">
@@ -682,6 +691,8 @@ const ShiftRequirements = () => {
                           </tbody>
                         </table>
                       </div>
+                    ) : (
+                      <p className="text-gray-400 italic">No shift requirements defined for this day.</p>
                     )}
                     {addingShift === day && (
                       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

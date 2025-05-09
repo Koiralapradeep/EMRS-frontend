@@ -54,10 +54,10 @@ const ManagerAvailability = () => {
   const [shiftRequirements, setShiftRequirements] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [weekStartDate, setWeekStartDate] = useState(() => {
-    const today = dayjs('2025-05-01').utc();
+    const today = dayjs().utc();
     const daysToNextSunday = (7 - today.day()) % 7 || 7;
     return today.add(daysToNextSunday, 'day');
-  }); // Set to upcoming Sunday (2025-05-04 initially)
+  });
   const [hasScheduledForWeek, setHasScheduledForWeek] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -317,7 +317,6 @@ const ManagerAvailability = () => {
       });
       let fetchedShifts = response.data || [];
 
-      // Strict filtering by department and week
       fetchedShifts = fetchedShifts.filter(shift => {
         const shiftDeptId = shift.departmentId ? shift.departmentId.toString() : null;
         const shiftWeekStart = dayjs(shift.weekStartDate).format('YYYY-MM-DD');
@@ -364,13 +363,12 @@ const ManagerAvailability = () => {
   useEffect(() => {
     if (!user || !user.companyId) return;
 
-    const today = dayjs('2025-05-01').utc();
-    const currentWeekStart = weekStartDate;
-    if (today.isAfter(currentWeekStart, 'day')) {
-      const daysToNextSunday = (7 - today.day()) % 7 || 7;
-      const nextSunday = today.add(daysToNextSunday, 'day');
-      setWeekStartDate(nextSunday);
-      console.log('Updated weekStartDate to next Sunday:', nextSunday.format('YYYY-MM-DD'));
+    const today = dayjs().utc();
+    const currentWeekStart = today.subtract(today.day(), 'day'); // Sunday of the current week
+    const initialWeekStart = today.add((7 - today.day()) % 7 || 7, 'day'); // Next Sunday
+    if (!weekStartDate.isSame(initialWeekStart, 'day') && weekStartDate.isBefore(currentWeekStart, 'day')) {
+      setWeekStartDate(initialWeekStart);
+      console.log('Updated weekStartDate to next Sunday:', initialWeekStart.format('YYYY-MM-DD'));
     }
 
     const fetchAllData = async () => {
@@ -404,7 +402,6 @@ const ManagerAvailability = () => {
     const selectedDate = dayjs(dateValue).utc();
     if (!selectedDate.isValid()) {
       toast.error('Please select a valid date.');
-      setWeekStartDate(dayjs('2025-05-04').utc());
       return;
     }
 
@@ -413,15 +410,36 @@ const ManagerAvailability = () => {
       return;
     }
 
-    const today = dayjs('2025-05-01').utc();
-    if (selectedDate.isBefore(today, 'day')) {
-      toast.error('Please select a future Sunday.');
+    const today = dayjs().utc();
+    const currentWeekStart = today.subtract(today.day(), 'day'); // Sunday of the current week
+    if (selectedDate.isBefore(currentWeekStart, 'day')) {
+      toast.error('Cannot select a week before the current week.');
       return;
     }
 
     setWeekStartDate(selectedDate);
     setPage(1);
     toast(`Selected Sunday: ${selectedDate.format('YYYY-MM-DD')}`, { duration: 4000 });
+  };
+
+  const handlePreviousWeek = () => {
+    const previousSunday = weekStartDate.subtract(7, 'day');
+    const today = dayjs().utc();
+    const currentWeekStart = today.subtract(today.day(), 'day'); // Sunday of the current week
+    if (previousSunday.isBefore(currentWeekStart, 'day')) {
+      toast.error('Cannot select a week before the current week.');
+      return;
+    }
+    setWeekStartDate(previousSunday);
+    setPage(1);
+    toast(`Selected Sunday: ${previousSunday.format('YYYY-MM-DD')}`, { duration: 4000 });
+  };
+
+  const handleNextWeek = () => {
+    const nextSunday = weekStartDate.add(7, 'day');
+    setWeekStartDate(nextSunday);
+    setPage(1);
+    toast(`Selected Sunday: ${nextSunday.format('YYYY-MM-DD')}`, { duration: 4000 });
   };
 
   const generateSchedule = async () => {
@@ -701,13 +719,26 @@ const ManagerAvailability = () => {
           <label className="block text-sm font-medium text-gray-300 mb-2">
             Select Week Start Date (Sunday):
           </label>
-          <input
-            type="date"
-            value={weekStartDate.format('YYYY-MM-DD')}
-            onChange={(e) => handleWeekStartDateChange(e.target.value)}
-            min={weekStartDate.format('YYYY-MM-DD')}
-            className="px-3 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePreviousWeek}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+            >
+              Previous Week
+            </button>
+            <input
+              type="date"
+              value={weekStartDate.format('YYYY-MM-DD')}
+              onChange={(e) => handleWeekStartDateChange(e.target.value)}
+              className="px-3 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleNextWeek}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+            >
+              Next Week
+            </button>
+          </div>
         </div>
         <button
           onClick={generateSchedule}
