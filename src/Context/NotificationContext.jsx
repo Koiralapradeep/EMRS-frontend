@@ -190,7 +190,8 @@ export const NotificationProvider = ({ children }) => {
   const markAsRead = async (notificationId) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.put(
+      console.log("Marking notification as read via context, ID:", notificationId);
+      const response = await axios.put(
         `${API_BASE_URL}/api/notifications/${notificationId}/mark-as-read`,
         null,
         {
@@ -199,9 +200,21 @@ export const NotificationProvider = ({ children }) => {
           },
         }
       );
-      setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
+  
+      console.log("Context markAsRead API response:", response.data);
+  
+      if (response.data.success) {
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n._id === notificationId ? { ...n, isRead: true } : n
+          )
+        );
+        console.log("Notification updated in context state");
+      } else {
+        console.error("Failed to mark notification as read in context:", response.data.message);
+      }
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      console.error("Error marking notification as read in context:", error.response?.data || error.message);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -8,6 +8,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 dayjs.extend(utc);
+
 // Function to convert 24-hour time to 12-hour AM/PM format
 const formatTimeTo12Hour = (time) => {
   const [hours, minutes] = time.split(':').map(Number);
@@ -25,10 +26,15 @@ const Availability = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const fetchCount = useRef(0); // Track number of fetch calls
+  const userFetchCount = useRef(0); // Track number of user fetch calls
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   useEffect(() => {
+    userFetchCount.current += 1;
+    console.log(`User fetch attempt #${userFetchCount.current}`);
+
     const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login');
@@ -37,6 +43,7 @@ const Availability = () => {
 
     if (user) {
       const id = user._id || user.id;
+      console.log('User data available:', { id, companyId: user.companyId, role: user.role });
       if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
         setError('Invalid user ID format. Please contact support.');
         return;
@@ -60,6 +67,7 @@ const Availability = () => {
             headers: { Authorization: `Bearer ${token}` },
             withCredentials: true,
           });
+          console.log('Fetched user data:', response.data);
           if (response.data?.success) {
             const userData = response.data.user;
             const id = userData._id || userData.id;
@@ -85,9 +93,15 @@ const Availability = () => {
   }, [user, navigate]);
 
   useEffect(() => {
-    if (!employeeId || !companyId) return;
+    if (!employeeId || !companyId) {
+      console.log('Skipping fetch: employeeId or companyId not set', { employeeId, companyId });
+      return;
+    }
 
     const fetchAvailabilities = async () => {
+      fetchCount.current += 1;
+      console.log(`Fetch attempt #${fetchCount.current} for employeeId: ${employeeId}, companyId: ${companyId}`);
+
       setLoading(true);
       setError('');
       try {
@@ -98,15 +112,35 @@ const Availability = () => {
           withCredentials: true,
         });
 
-        if (response.data && response.data.days) {
-          setAvailabilities([response.data]);
-        } else {
-          setAvailabilities([]);
+        console.log('API Response:', response.data);
+
+        // Ensure the response is always an array
+        const data = Array.isArray(response.data) ? response.data : response.data && typeof response.data === 'object' ? [response.data] : [];
+        console.log('Processed data:', data);
+
+        // Validate that each availability has an _id
+        const validData = data.filter(item => {
+          if (!item._id) {
+            console.warn('Availability item missing _id:', item);
+            return false;
+          }
+          return true;
+        });
+
+        if (validData.length === 0 && data.length > 0) {
+          setError('No valid availabilities found: Missing ID fields.');
+          toast.error('No valid availabilities found.', { duration: 7000 });
         }
+
+        console.log('Before setting availabilities, current state:', availabilities);
+        setAvailabilities(validData);
+        console.log('After setting availabilities, new state:', validData);
       } catch (err) {
-        const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to fetch availability.';
-        setError(errorMessage);
+        const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to fetch availabilities.';
+        console.log('Error fetching availabilities:', errorMessage);
         setAvailabilities([]);
+        setError(errorMessage);
+        toast.error(errorMessage, { duration: 7000 });
       } finally {
         setLoading(false);
       }
@@ -116,7 +150,15 @@ const Availability = () => {
   }, [employeeId, companyId]);
 
   const handleEdit = (availabilityId) => {
-    navigate(`/employee-dashboard/edit-availability/${availabilityId}`);
+    console.log('handleEdit called with availabilityId:', availabilityId);
+    if (!availabilityId || !/^[0-9a-fA-F]{24}$/.test(availabilityId)) {
+      console.error('Invalid availabilityId:', availabilityId);
+      toast.error('Cannot edit availability: Invalid ID.', { duration: 7000 });
+      return;
+    }
+    const targetPath = `/employee-dashboard/edit-availability/${availabilityId}`;
+    console.log('Navigating to:', targetPath);
+    navigate(targetPath);
   };
 
   const handleDelete = async (availabilityId) => {
@@ -135,7 +177,11 @@ const Availability = () => {
         withCredentials: true,
       });
 
-      setAvailabilities(availabilities.filter((avail) => avail._id !== availabilityId));
+      console.log('Before deleting, availabilities:', availabilities);
+      const updatedAvailabilities = availabilities.filter((avail) => avail._id !== availabilityId);
+      setAvailabilities(updatedAvailabilities);
+      console.log('After deleting, availabilities:', updatedAvailabilities);
+
       setSuccess('Availability deleted successfully!');
       toast.success('Availability deleted!', { duration: 7000 });
     } catch (err) {
@@ -146,6 +192,9 @@ const Availability = () => {
   };
 
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  // Log state before rendering
+  console.log('Availabilities before rendering:', availabilities);
 
   return (
     <div className="p-6 bg-gray-800 min-h-screen text-white">
@@ -205,53 +254,63 @@ const Availability = () => {
                 </tr>
               </thead>
               <tbody>
-                {availabilities.map((availability, index) => (
-                  <tr
-                    key={availability._id}
-                    className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'} hover:bg-gray-600 transition-colors`}
-                  >
-                    <td className="p-4">{dayjs(availability.weekStartDate).utc().format('YYYY-MM-DD')}</td>
-                    <td className="p-4">{dayjs(availability.weekEndDate).utc().format('YYYY-MM-DD')}</td>
-                    {daysOfWeek.map((day, idx) => {
-                      const dayKey = day.toLowerCase();
-                      const dayData = availability.days[dayKey] || { available: false, slots: [] };
-                      return (
-                        <td key={idx} className="p-4">
-                          {dayData.available ? (
-                            dayData.slots.length > 0 ? (
-                              <ul className="space-y-1">
-                                {dayData.slots.map((slot, slotIdx) => (
-                                  <li key={slotIdx}>
-                                    {slot.startDay} {formatTimeTo12Hour(slot.startTime)} - {slot.endDay} {formatTimeTo12Hour(slot.endTime)} ({slot.shiftType})
-                                  </li>
-                                ))}
-                              </ul>
+                {availabilities.map((availability, index) => {
+                  console.log(`Rendering availability #${index}:`, availability);
+                  const renderKey = availability._id ? `${availability._id}-${index}` : `avail-${index}`;
+                  return (
+                    <tr
+                      key={renderKey}
+                      className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'} hover:bg-gray-600 transition-colors`}
+                    >
+                      <td className="p-4">{dayjs(availability.weekStartDate).utc().format('YYYY-MM-DD')}</td>
+                      <td className="p-4">{dayjs(availability.weekEndDate).utc().format('YYYY-MM-DD')}</td>
+                      {daysOfWeek.map((day, idx) => {
+                        const dayKey = day.toLowerCase();
+                        const dayData = availability.days?.[dayKey] || { available: false, slots: [] };
+                        return (
+                          <td key={idx} className="p-4">
+                            {dayData.available ? (
+                              dayData.slots.length > 0 ? (
+                                <ul className="space-y-1">
+                                  {dayData.slots.map((slot, slotIdx) => (
+                                    <li key={slotIdx}>
+                                      {slot.startDay} {formatTimeTo12Hour(slot.startTime)} - {slot.endDay} {formatTimeTo12Hour(slot.endTime)} ({slot.shiftType})
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                'Available all day'
+                              )
                             ) : (
-                              'Available all day'
-                            )
-                          ) : (
-                            'Unavailable'
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="p-4">{availability.note || '-'}</td>
-                    <td className="p-4 flex gap-2">
-                      <button
-                        onClick={() => handleEdit(availability._id)}
-                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
-                      >
-                        <FaEdit /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(availability._id)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
-                      >
-                        <FaTrash /> Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                              'Unavailable'
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="p-4">{availability.note || '-'}</td>
+                      <td className="p-4 flex gap-2">
+                        <button
+                          onClick={() => {
+                            console.log('Edit button clicked for availability:', availability._id);
+                            handleEdit(availability._id);
+                          }}
+                          className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                        >
+                          <FaEdit /> Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            console.log('Delete button clicked for availability:', availability._id);
+                            handleDelete(availability._id);
+                          }}
+                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                        >
+                          <FaTrash /> Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

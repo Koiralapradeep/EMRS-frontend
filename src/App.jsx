@@ -127,7 +127,7 @@ function App() {
         <Route path="feedback" element={<EmployeeFeedback />} />
         <Route path="availability" element={<Availability/>} />
         <Route path="add-availability" element={<AvailabilityForm />} /> 
-        <Route path="edit-availability/:id" element={<EditAvailabilities />} />
+        <Route path="edit-availability/:availabilityId" element={<EditAvailabilities />} />
         <Route path="shifts" element={<EmployeeShifts />} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>

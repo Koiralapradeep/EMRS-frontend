@@ -76,7 +76,6 @@ export const AuthProvider = ({ children }) => {
 
     try {
       console.log("Fetching user profile with token:", token);
-
       const response = await fetch("http://localhost:3000/api/auth/user", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -100,7 +99,6 @@ export const AuthProvider = ({ children }) => {
 
       if (data.user) {
         console.log("Extracted user data:", data.user);
-
         if (isLoggingOut) {
           console.log("User data received, but logout in progress. Ignoring.");
           return;
@@ -134,7 +132,6 @@ export const AuthProvider = ({ children }) => {
             console.warn("ERROR: `companyName` is missing from user data!");
           }
 
-          // Fetch departmentId from the employees endpoint
           const employeeResponse = await fetch(`http://localhost:3000/api/employees/user/${data.user._id}`, {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -211,7 +208,6 @@ export const AuthProvider = ({ children }) => {
         console.warn("ERROR - No `companyName` found in user data!");
       }
 
-      // Fetch departmentId from the employees endpoint during login
       fetch(`http://localhost:3000/api/employees/user/${user._id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -267,17 +263,26 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+        console.log("DEBUG - Sending logout request with token:", token.slice(0, 10) + "...");
+      } else {
+        console.log("DEBUG - No token found in localStorage for logout request");
+      }
+
       const response = await fetch("http://localhost:3000/api/auth/logout", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         credentials: "include",
       });
 
       if (!response.ok) {
-        console.error(`Failed to log out on server (Status: ${response.status})`);
+        const errorText = await response.text();
+        console.error(`Failed to log out on server (Status: ${response.status}, Response: ${errorText})`);
       } else {
         console.log("Server session destroyed successfully.");
       }
@@ -305,23 +310,27 @@ export const AuthProvider = ({ children }) => {
       document.cookie = "connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
       console.log("Cleared connect.sid cookie on frontend.");
 
-      if (window.notificationSocket) {
+      // Safely disconnect sockets
+      if (window.notificationSocket && typeof window.notificationSocket.disconnect === 'function') {
         window.notificationSocket.disconnect();
         window.notificationSocket = null;
         console.log("Socket.IO disconnected from NotificationContext.");
+      } else {
+        console.log("No notificationSocket to disconnect or disconnect method not available.");
       }
 
-      if (window.socket) {
+      if (window.socket && typeof window.socket.disconnect === 'function') {
         window.socket.disconnect();
         console.log("Socket.IO disconnected (window.socket).");
+      } else {
+        console.log("No socket to disconnect or disconnect method not available.");
       }
 
-      setTimeout(() => {
-        setLoading(false);
-        navigate("/login", { replace: true });
-        console.log("User logged out successfully.");
-        setIsLoggingOut(false);
-      }, 100);
+      // Perform state updates and navigation synchronously
+      setLoading(false);
+      navigate("/login", { replace: true });
+      console.log("User logged out successfully.");
+      setIsLoggingOut(false);
     }
   };
 

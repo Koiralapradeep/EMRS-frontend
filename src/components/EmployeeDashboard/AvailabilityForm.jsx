@@ -125,7 +125,7 @@ const AvailabilityForm = ({ availabilityId }) => {
                 startDay: slot.startDay || day,
                 endDay: slot.endDay || day,
                 shiftType: slot.shiftType || 'Day',
-                preference: slot.preference || 0, // Default to 0 if not present
+                preference: slot.preference || 0,
               }));
             }
           });
@@ -163,26 +163,61 @@ const AvailabilityForm = ({ availabilityId }) => {
     try {
       const prevWeek = weekStartDate.subtract(7, 'day').format('YYYY-MM-DD');
       const token = localStorage.getItem("token");
+      console.log('Fetching previous week availability for:', prevWeek, 'employeeId:', employeeId, 'companyId:', companyId);
       const response = await axios.get(`${API_BASE_URL}/api/availability/${employeeId}`, {
         params: { companyId, weekStartDate: prevWeek },
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
 
-      if (response.data && response.data.days) {
-        const copiedDays = { ...response.data.days };
+      console.log('API Response for previous week:', response.data);
+
+      if (response.status === 200 && response.data && response.data.days) {
+        const defaultDays = {
+          sunday: { available: false, slots: [], note: '' },
+          monday: { available: false, slots: [], note: '' },
+          tuesday: { available: false, slots: [], note: '' },
+          wednesday: { available: false, slots: [], note: '' },
+          thursday: { available: false, slots: [], note: '' },
+          friday: { available: false, slots: [], note: '' },
+          saturday: { available: false, slots: [], note: '' },
+        };
+        const copiedDays = { ...defaultDays, ...response.data.days };
+        let hasAvailability = false;
+
         Object.keys(copiedDays).forEach(day => {
-          if (copiedDays[day].slots) {
+          if (!copiedDays[day].hasOwnProperty('available')) {
+            copiedDays[day].available = false;
+          }
+          if (!copiedDays[day].hasOwnProperty('slots')) {
+            copiedDays[day].slots = [];
+          }
+          if (!copiedDays[day].hasOwnProperty('note')) {
+            copiedDays[day].note = '';
+          }
+
+          if (copiedDays[day].slots && copiedDays[day].slots.length > 0) {
             copiedDays[day].slots = copiedDays[day].slots.map(slot => ({
-              startTime: slot.startTime,
-              endTime: slot.endTime,
+              startTime: slot.startTime || '00:00',
+              endTime: slot.endTime || '00:00',
               startDay: slot.startDay || day,
               endDay: slot.endDay || day,
               shiftType: slot.shiftType || 'Day',
-              preference: slot.preference || 0,
+              preference: slot.preference !== undefined ? slot.preference : 0,
             }));
           }
+          if (copiedDays[day].available && copiedDays[day].slots?.length > 0) {
+            hasAvailability = true;
+          }
         });
+
+        console.log('Processed copied days:', copiedDays);
+
+        if (!hasAvailability) {
+          setError('Previous week has no availability to copy.');
+          toast.error('Previous week has no availability.', { duration: 7000 });
+          return;
+        }
 
         setDays(copiedDays);
         setIsRecurring(response.data.isRecurring || false);
@@ -193,6 +228,7 @@ const AvailabilityForm = ({ availabilityId }) => {
         toast.error('No previous week availability found.', { duration: 7000 });
       }
     } catch (err) {
+      console.error('Error copying previous week:', err.response?.data || err.message);
       setError('Failed to copy availability from the previous week.');
       toast.error('Failed to copy previous week availability.', { duration: 7000 });
     }
