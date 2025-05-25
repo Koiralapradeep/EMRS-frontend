@@ -6,8 +6,6 @@ import { Bar } from 'react-chartjs-2';
 import { useAuth } from '../../Context/authContext';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Modal from 'react-modal';
-import { FaTimes } from 'react-icons/fa';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -22,26 +20,6 @@ import ScheduleCalendar from './ScheduleCalender';
 dayjs.extend(utc);
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
-const modalStyles = {
-  content: {
-    top: '50%',
-    left: '50%',
-    right: 'auto',
-    bottom: 'auto',
-    marginRight: '-50%',
-    transform: 'translate(-50%, -50%)',
-    backgroundColor: '#1f2937',
-    color: 'white',
-    borderRadius: '8px',
-    padding: '24px',
-    maxWidth: '600px',
-    width: '90%',
-  },
-  overlay: { backgroundColor: 'rgba(0, 0, 0, 0.75)' },
-};
-
-Modal.setAppElement('#root');
 
 const ManagerAvailability = () => {
   const { user } = useAuth();
@@ -73,8 +51,21 @@ const ManagerAvailability = () => {
     shiftRequirements: false,
   });
   const [isDataReady, setIsDataReady] = useState(false);
-  const [editingShift, setEditingShift] = useState(null);
-  const [modalIsOpen, setModalIsOpen] = useState(false);
+
+  // Search and filter states for employee availabilities
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDay, setFilterDay] = useState('');
+
+  // Manual shift management states
+  const [showManualShiftForm, setShowManualShiftForm] = useState(false);
+  const [manualShiftData, setManualShiftData] = useState({
+    employeeId: '',
+    day: '',
+    startTime: '',
+    endTime: '',
+    note: ''
+  });
+
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -85,6 +76,204 @@ const ManagerAvailability = () => {
     </div>
   );
 
+  // Delete shift function
+  const deleteShift = async (shiftId) => {
+    if (!window.confirm('Are you sure you want to delete this shift?')) {
+      return;
+    }
+
+    // Clear previous messages
+    setError('');
+    setSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authentication token found.');
+
+      console.log('Deleting shift with ID:', shiftId);
+
+      // Find the shift being deleted for success message
+      const shiftToDelete = shifts.find(shift => shift._id === shiftId);
+      const employeeName = shiftToDelete?.employeeId?.name || 'Employee';
+      const shiftDay = shiftToDelete?.day || 'day';
+      const shiftTime = shiftToDelete ? `${shiftToDelete.startTime}-${shiftToDelete.endTime}` : 'time';
+
+      const response = await axios.delete(`${API_BASE_URL}/api/availability/shift-schedule/${shiftId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
+
+      console.log('Delete response:', response.data);
+      
+      const successMessage = `Shift deleted successfully! ${employeeName}'s ${shiftDay} shift (${shiftTime}) has been removed. Space is now available for manual scheduling.`;
+      setSuccess(successMessage);
+      setError('');
+      toast.success('Shift deleted successfully!');
+      
+      // Update local state immediately for better UX
+      setShifts(prevShifts => prevShifts.filter(shift => shift._id !== shiftId));
+      
+      // Check if we still have shifts after deletion
+      const remainingShifts = shifts.filter(shift => shift._id !== shiftId);
+      setHasScheduledForWeek(remainingShifts.length > 0);
+      
+      // Also refresh from server to ensure consistency
+      fetchShifts();
+    } catch (err) {
+      console.error('Error deleting shift:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to delete shift.';
+      setError(errorMessage);
+      setSuccess('');
+      toast.error('Failed to delete shift');
+    }
+  };
+
+  // Manual shift creation
+  const createManualShift = async () => {
+  if (!manualShiftData.employeeId || !manualShiftData.day || !manualShiftData.startTime || !manualShiftData.endTime) {
+    setError('Please fill in all required fields');
+    setSuccess('');
+    toast.error('Please fill in all required fields');
+    return;
+  }
+
+  if (!selectedDepartment) {
+    setError('Please select a department first before creating manual shifts');
+    setSuccess('');
+    toast.error('Please select a department first');
+    return;
+  }
+
+  // Clear previous messages
+  setError('');
+  setSuccess('');
+
+  // Check if employee already has a shift at this time
+  const employeeExistingShifts = shifts.filter(shift => 
+    shift.employeeId?._id === manualShiftData.employeeId && 
+    shift.day === manualShiftData.day
+  );
+
+  if (employeeExistingShifts.length > 0) {
+    const conflictingShift = employeeExistingShifts.find(shift => {
+      const existingStart = shift.startTime;
+      const existingEnd = shift.endTime;
+      const newStart = manualShiftData.startTime;
+      const newEnd = manualShiftData.endTime;
+      
+      // Check for time overlap
+      return (newStart < existingEnd && newEnd > existingStart);
+    });
+    
+    if (conflictingShift) {
+      const errorMessage = `Employee already has a shift on ${manualShiftData.day} from ${conflictingShift.startTime} to ${conflictingShift.endTime}. Please delete the existing shift first or choose a different time.`;
+      setError(errorMessage);
+      toast.error(errorMessage);
+      return;
+    }
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('No authentication token found.');
+
+    // Calculate duration hours using proper time parsing
+    const [startHours, startMinutes] = manualShiftData.startTime.split(':').map(Number);
+    const [endHours, endMinutes] = manualShiftData.endTime.split(':').map(Number);
+    
+    const startTotalMinutes = startHours * 60 + startMinutes;
+    let endTotalMinutes = endHours * 60 + endMinutes;
+    
+    // Handle overnight shifts
+    if (endTotalMinutes <= startTotalMinutes) {
+      endTotalMinutes += 24 * 60; // Add 24 hours
+    }
+    
+    const durationMinutes = endTotalMinutes - startTotalMinutes;
+    const durationHours = durationMinutes / 60;
+    
+    // Validate that we have valid values
+    if (!durationHours || durationHours <= 0) {
+      setError('Invalid shift duration. Please check start and end times.');
+      setSuccess('');
+      return;
+    }
+    
+    if (!user.companyId) {
+      setError('Company ID is missing from user data.');
+      setSuccess('');
+      return;
+    }
+    
+    // Create payload matching the backend expectation AND the schema
+    const payload = {
+      employeeId: manualShiftData.employeeId,
+      companyId: user.companyId, // Include companyId in the body
+      departmentId: selectedDepartment,
+      weekStartDate: weekStartDate.format('YYYY-MM-DD'),
+      day: manualShiftData.day,
+      startTime: manualShiftData.startTime,
+      endTime: manualShiftData.endTime,
+      durationHours: Number(durationHours.toFixed(2)), // Include durationHours
+      note: manualShiftData.note || 'Manual shift'
+    };
+    
+    console.log('Creating manual shift with payload:', payload);
+
+    // Use the correct endpoint for manual shift creation
+    const response = await axios.post(`${API_BASE_URL}/api/availability/schedule/${user.companyId}`, payload, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true,
+    });
+
+    console.log('Manual shift creation response:', response.data);
+    
+    const selectedEmployee = availableEmployees.find(emp => emp._id === manualShiftData.employeeId);
+    const successMessage = `Manual shift created successfully! Employee ${selectedEmployee?.name || 'Unknown'} has been assigned to ${manualShiftData.day} from ${manualShiftData.startTime} to ${manualShiftData.endTime}.`;
+    
+    setSuccess(successMessage);
+    setError('');
+    toast.success('Manual shift created successfully!');
+    
+    setShowManualShiftForm(false);
+    setManualShiftData({
+      employeeId: '',
+      day: '',
+      startTime: '',
+      endTime: '',
+      note: ''
+    });
+    
+    // Refresh shifts to show the new one
+    fetchShifts();
+  } catch (err) {
+    console.error('Error creating manual shift:', err);
+    
+    let errorMessage = 'Failed to create manual shift.';
+    
+    if (err.response) {
+      console.log('Backend returned error:', err.response.status, err.response.data);
+      
+      if (err.response.status === 400) {
+        errorMessage = err.response.data?.message || 'Invalid request data. Please check all fields.';
+      } else if (err.response.status === 409) {
+        errorMessage = 'Shift conflict detected. There is no available space for this time slot. Please delete an existing shift first or choose a different time.';
+      } else if (err.response.status === 500) {
+        errorMessage = err.response.data?.message || 'Server error occurred while creating shift.';
+      } else {
+        errorMessage = err.response.data?.message || `Server returned error: ${err.response.status}`;
+      }
+    } else if (err.request) {
+      errorMessage = 'No response from server. Please check your connection.';
+    } else {
+      errorMessage = `Request error: ${err.message}`;
+    }
+    
+    setError(errorMessage);
+    setSuccess('');
+    toast.error('Failed to create manual shift');
+  }
+};
   const fetchDepartments = useCallback(async () => {
     setIsLoadingData((prev) => ({ ...prev, departments: true }));
     setError('');
@@ -201,7 +390,7 @@ const ManagerAvailability = () => {
       const params = {
         weekStartDate: utcWeekStartDate,
         page,
-        limit: 10,
+        limit: 50, // Increased limit for better search/filter experience
         ...(selectedDepartment && { departmentId: selectedDepartment }),
       };
       const response = await axios.get(`${API_BASE_URL}/api/availability/company/${user.companyId}`, {
@@ -524,58 +713,18 @@ const ManagerAvailability = () => {
     }
   };
 
-  const handleEditShift = (shift) => {
-    setEditingShift(shift);
-    setModalIsOpen(true);
-  };
+  // Callback functions for ScheduleCalendar
+  const handleDeleteShift = useCallback((shiftId) => {
+    setShifts((prev) => prev.filter((shift) => shift._id !== shiftId));
+    const remainingShifts = shifts.filter((shift) => shift._id !== shiftId);
+    setHasScheduledForWeek(remainingShifts.length > 0);
+  }, [shifts]);
 
-  const handleDeleteShift = async (shiftId) => {
-    if (!window.confirm('Are you sure you want to delete this shift?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('No authentication token found.');
-      await axios.delete(`${API_BASE_URL}/api/availability/shift-schedule/${shiftId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
-      setShifts((prev) => prev.filter((shift) => shift._id !== shiftId));
-      toast.success('Shift deleted successfully!');
-      const remainingShifts = shifts.filter((shift) => shift._id !== shiftId);
-      setHasScheduledForWeek(remainingShifts.length > 0);
-    } catch (err) {
-      const message = err.response?.data?.message || 'Failed to delete shift.';
-      toast.error(message);
-    }
-  };
-
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const startTime = formData.get('startTime');
-    const endTime = formData.get('endTime');
-
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('No authentication token found.');
-      const response = await axios.put(
-        `${API_BASE_URL}/api/availability/shift-schedule/${editingShift._id}`,
-        { startTime, endTime },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        }
-      );
-      setShifts((prev) =>
-        prev.map((shift) => (shift._id === editingShift._id ? response.data.data : shift))
-      );
-      toast.success('Shift updated successfully!');
-      setModalIsOpen(false);
-      setEditingShift(null);
-    } catch (err) {
-      const message = err.response?.data?.message || 'Failed to update shift.';
-      toast.error(message);
-    }
-  };
+  const handleUpdateShift = useCallback((shiftId, updatedShift) => {
+    setShifts((prev) =>
+      prev.map((shift) => (shift._id === shiftId ? { ...shift, ...updatedShift } : shift))
+    );
+  }, []);
 
   const renderAvailability = (days) => {
     if (!days || Object.keys(days).length === 0) {
@@ -585,20 +734,64 @@ const ManagerAvailability = () => {
       .filter(([_, day]) => day.available)
       .map(([day, { slots, note }]) => (
         <div key={day} className="mb-2">
-          <strong>{day.charAt(0).toUpperCase() + day.slice(1)}:</strong>{' '}
+          <strong className="text-teal-400">{day.charAt(0).toUpperCase() + day.slice(1)}:</strong>{' '}
           {slots.length ? (
-            slots.map((slot, i) => (
-              <span key={i}>
-                {slot.startTime}–{slot.endTime} (Pref: {slot.preference}){' '}
-              </span>
-            ))
+            <div className="flex flex-wrap gap-1 mt-1">
+              {slots.map((slot, i) => (
+                <span key={i} className="bg-teal-600 text-white px-2 py-1 rounded text-xs">
+                  {slot.startTime}–{slot.endTime} (Pref: {slot.preference})
+                </span>
+              ))}
+            </div>
           ) : (
-            'All day'
+            <span className="bg-green-600 text-white px-2 py-1 rounded text-xs">All day</span>
           )}
-          {note && <p className="text-sm text-gray-400">Note: {note}</p>}
+          {note && <p className="text-sm text-gray-400 mt-1">Note: {note}</p>}
         </div>
       ));
   };
+
+  // Filter availabilities based on search and filters
+  const filteredAvailabilities = useMemo(() => {
+    return availabilities.filter(avail => {
+      const matchesSearch = !searchTerm || 
+        avail.employeeId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        avail.employeeId?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesDay = !filterDay || (avail.days && avail.days[filterDay] && avail.days[filterDay].available);
+      
+      return matchesSearch && matchesDay;
+    });
+  }, [availabilities, searchTerm, filterDay]);
+
+  // Get available employees for manual shift assignment
+  const availableEmployees = useMemo(() => {
+    if (!manualShiftData.day || !selectedDepartment) return [];
+    
+    return availabilities.filter(avail => {
+      // Check if employee is in the selected department
+      const isInDepartment = avail.employeeId?.departmentId?.toString() === selectedDepartment;
+      
+      // Check if employee is available on the selected day
+      const dayAvail = avail.days?.[manualShiftData.day];
+      const isAvailableOnDay = dayAvail && dayAvail.available;
+      
+      // Check if employee already has a shift on this day
+      const hasExistingShift = shifts.some(shift => 
+        shift.employeeId?._id === avail.employeeId?._id && 
+        shift.day === manualShiftData.day
+      );
+      
+      console.log(`Employee ${avail.employeeId?.name}:`, {
+        isInDepartment,
+        isAvailableOnDay,
+        hasExistingShift,
+        shouldShow: isInDepartment && isAvailableOnDay && !hasExistingShift
+      });
+      
+      return isInDepartment && isAvailableOnDay && !hasExistingShift;
+    }).map(avail => avail.employeeId);
+  }, [availabilities, manualShiftData.day, selectedDepartment, shifts]);
 
   const employeesWithShifts = useMemo(() => {
     return shifts.reduce((acc, shift) => {
@@ -681,7 +874,118 @@ const ManagerAvailability = () => {
         >
           Manage Shift Requirements
         </Link>
+        <button
+          onClick={() => setShowManualShiftForm(!showManualShiftForm)}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded font-semibold transition"
+        >
+          {showManualShiftForm ? 'Cancel Manual Shift' : 'Add Manual Shift'}
+        </button>
       </div>
+
+        {/* Manual Shift Form */}
+      {showManualShiftForm && (
+        <div className="bg-gray-800 p-4 rounded-lg mb-6">
+          <h3 className="text-lg font-semibold mb-4">Add Manual Shift</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Day:</label>
+              <select
+                value={manualShiftData.day}
+                onChange={(e) => setManualShiftData(prev => ({ ...prev, day: e.target.value }))}
+                className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Day</option>
+                {daysOfWeek.map(day => (
+                  <option key={day} value={day}>{day.charAt(0).toUpperCase() + day.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Start Time:</label>
+              <input
+                type="time"
+                value={manualShiftData.startTime}
+                onChange={(e) => setManualShiftData(prev => ({ ...prev, startTime: e.target.value }))}
+                className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">End Time:</label>
+              <input
+                type="time"
+                value={manualShiftData.endTime}
+                onChange={(e) => setManualShiftData(prev => ({ ...prev, endTime: e.target.value }))}
+                className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Available Employee:</label>
+              <select
+                value={manualShiftData.employeeId}
+                onChange={(e) => setManualShiftData(prev => ({ ...prev, employeeId: e.target.value }))}
+                className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+                disabled={!manualShiftData.day || !selectedDepartment}
+              >
+                <option value="">
+                  {!selectedDepartment 
+                    ? "Select department first"
+                    : !manualShiftData.day 
+                      ? "Select day first" 
+                      : availableEmployees.length === 0 
+                        ? "No employees available" 
+                        : "Select Available Employee"
+                  }
+                </option>
+                {availableEmployees.map(emp => (
+                  <option key={emp._id} value={emp._id}>
+                    {emp.name} ({emp.email})
+                  </option>
+                ))}
+              </select>
+              {selectedDepartment && manualShiftData.day && availableEmployees.length === 0 && (
+                <p className="text-yellow-400 text-xs mt-1">
+                  No employees available for {manualShiftData.day} in the selected department without existing shifts
+                </p>
+              )}
+              {!selectedDepartment && (
+                <p className="text-red-400 text-xs mt-1">
+                  Please select a department first
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-300 mb-2">Note (Optional):</label>
+            <textarea
+              value={manualShiftData.note}
+              onChange={(e) => setManualShiftData(prev => ({ ...prev, note: e.target.value }))}
+              className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+              rows="2"
+              placeholder="Add any notes about this shift..."
+            />
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={createManualShift}
+              disabled={!manualShiftData.employeeId || availableEmployees.length === 0}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded font-semibold transition disabled:bg-gray-600 disabled:cursor-not-allowed"
+              title={
+                !manualShiftData.employeeId || availableEmployees.length === 0
+                  ? "Select an available employee to create shift"
+                  : "Create shift"
+              }
+            >
+              Create Shift
+            </button>
+            <button
+              onClick={() => setShowManualShiftForm(false)}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded font-semibold transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 flex gap-4 items-end">
         <div>
@@ -759,8 +1063,14 @@ const ManagerAvailability = () => {
       ) : analytics ? (
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-4">Availability Analytics</h3>
-          <p>Total Employees: {analytics.totalEmployees}</p>
-          <p>Total Hours: {analytics.totalHours.toFixed(2)}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="bg-gray-800 p-4 rounded">
+              <p className="text-teal-400 font-semibold">Total Employees: {analytics.totalEmployees}</p>
+            </div>
+            <div className="bg-gray-800 p-4 rounded">
+              <p className="text-green-400 font-semibold">Total Hours: {analytics.totalHours.toFixed(2)}</p>
+            </div>
+          </div>
           <div className="mt-4">
             {chartData.datasets[0].data.some((d) => d > 0) || chartData.datasets[1].data.some((d) => d > 0) ? (
               <Bar
@@ -787,8 +1097,9 @@ const ManagerAvailability = () => {
         setWeekStartDate={setWeekStartDate}
         adjustToSunday={() => weekStartDate}
         shifts={shifts}
-        onEditShift={handleEditShift}
         onDeleteShift={handleDeleteShift}
+        onUpdateShift={handleUpdateShift}
+        onRefreshShifts={fetchShifts}
       />
 
       <div className="mb-6">
@@ -799,16 +1110,17 @@ const ManagerAvailability = () => {
           <p className="text-gray-400">No shifts assigned for this week.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm bg-gray-800 rounded-lg">
               <thead>
                 <tr className="bg-gray-700">
-                  <th className="p-2">Employee</th>
+                  <th className="p-3 font-semibold">Employee</th>
                   {daysOfWeek.map((day) => (
-                    <th key={day} className="p-2">
+                    <th key={day} className="p-3 font-semibold">
                       {day.charAt(0).toUpperCase() + day.slice(1)}
                     </th>
                   ))}
-                  <th className="p-2">Total Hours</th>
+                  <th className="p-3 font-semibold">Total Hours</th>
+                  <th className="p-3 font-semibold">Shift Count</th>
                 </tr>
               </thead>
               <tbody>
@@ -825,41 +1137,50 @@ const ManagerAvailability = () => {
                         }
                         return endDateTime.diff(startDateTime, 'hour', true);
                       })();
-                      console.log(`Shift for ${employee.email} on ${day}: ${shift.startTime}-${shift.endTime}, Duration: ${duration} hours, WeekStart: ${dayjs(shift.weekStartDate).format('YYYY-MM-DD')}`);
                       return duration;
                     });
                     const daySum = shiftContributions.reduce((acc, duration) => acc + duration, 0);
                     return sum + daySum;
                   }, 0);
                   return (
-                    <tr key={employee._id} className="border-b border-gray-700">
-                      <td className="p-2">
-                        {employee.name} ({employee.email})
+                    <tr key={employee._id} className="border-b border-gray-700 hover:bg-gray-750">
+                      <td className="p-3">
+                        <div>
+                          <div className="font-semibold text-white">{employee.name}</div>
+                          <div className="text-gray-400 text-xs">{employee.email}</div>
+                          <div className="text-teal-400 text-xs">{employee.role}</div>
+                        </div>
                       </td>
                       {daysOfWeek.map((day) => (
-                        <td key={day} className="p-2">
-                          {shiftsByDay[day].map((shift) => (
-                            <div key={shift._id} className="flex items-center gap-2 mb-1">
-                              <span className="bg-teal-600 text-white px-2 py-1 rounded">
-                                {shift.startTime}–{shift.endTime}
-                              </span>
-                              <button
-                                onClick={() => handleEditShift(shift)}
-                                className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteShift(shift._id)}
-                                className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          ))}
+                        <td key={day} className="p-3">
+                          <div className="space-y-1">
+                            {shiftsByDay[day].map((shift) => (
+                              <div key={shift._id} className="flex items-center gap-2">
+                                <span className="bg-teal-600 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
+                                  {shift.startTime}–{shift.endTime}
+                                </span>
+                                <button
+                                  onClick={() => deleteShift(shift._id)}
+                                  className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs transition"
+                                  title="Delete this shift"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
                         </td>
                       ))}
-                      <td className="p-2">{totalHours.toFixed(2)}</td>
+                      <td className="p-3">
+                        <span className="bg-green-600 text-white px-2 py-1 rounded text-sm font-semibold">
+                          {totalHours.toFixed(2)}h
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <div className="text-gray-400 text-xs">
+                          {Object.values(shiftsByDay).flat().length} shifts
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -870,27 +1191,104 @@ const ManagerAvailability = () => {
       </div>
 
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-4">Employee Availabilities</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Employee Availabilities</h3>
+          <div className="text-sm text-gray-400">
+            {filteredAvailabilities.length} of {availabilities.length} employees
+          </div>
+        </div>
+        
+        {/* Search and Filter Controls */}
+        <div className="bg-gray-800 p-4 rounded-lg mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Search Employee:</label>
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Filter by Day:</label>
+              <select
+                value={filterDay}
+                onChange={(e) => setFilterDay(e.target.value)}
+                className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Days</option>
+                {daysOfWeek.map(day => (
+                  <option key={day} value={day}>{day.charAt(0).toUpperCase() + day.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterDay('');
+                }}
+                className="w-full bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded transition"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+
         {isLoadingData.availabilities ? (
           <LoadingSpinner />
-        ) : availabilities.length === 0 ? (
-          <p className="text-gray-400">
-            No availabilities found for the week of {weekStartDate.format('MM/DD/YYYY')}
-            {selectedDepartment
-              ? ` in ${departments.find((dept) => dept._id === selectedDepartment)?.departmentName || 'the selected department'}`
-              : ''}.
-            Employees can submit their availability for this week, or try selecting a different week or department.
-          </p>
+        ) : filteredAvailabilities.length === 0 ? (
+          <div className="text-center py-8">
+            {availabilities.length === 0 ? (
+              <p className="text-gray-400">
+                No availabilities found for the week of {weekStartDate.format('MM/DD/YYYY')}
+                {selectedDepartment
+                  ? ` in ${departments.find((dept) => dept._id === selectedDepartment)?.departmentName || 'the selected department'}`
+                  : ''}.
+                Employees can submit their availability for this week, or try selecting a different week or department.
+              </p>
+            ) : (
+              <p className="text-gray-400">
+                No employees match the current search and filter criteria.
+              </p>
+            )}
+          </div>
         ) : (
-          <div className="space-y-4">
-            {availabilities.map((avail) => (
-              <div key={avail._id} className="bg-gray-800 p-4 rounded">
-                <h4 className="text-md font-semibold">
-                  {avail.employeeId?.name || 'Unknown'} ({avail.employeeId?.email || 'N/A'})
-                </h4>
-                <p className="text-sm text-gray-400">Role: {avail.employeeId?.role || 'N/A'}</p>
-                {renderAvailability(avail.days)}
-                {avail.note && <p className="text-sm text-gray-400">General Note: {avail.note}</p>}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredAvailabilities.map((avail) => (
+              <div key={avail._id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="text-md font-semibold text-white">
+                      {avail.employeeId?.name || 'Unknown'}
+                    </h4>
+                    <p className="text-sm text-gray-400">{avail.employeeId?.email || 'N/A'}</p>
+                    <span className="inline-block bg-blue-600 text-white px-2 py-1 rounded text-xs mt-1">
+                      {avail.employeeId?.role || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-400">Department</div>
+                    <div className="text-sm text-teal-400">
+                      {departments.find(dept => dept._id === avail.employeeId?.departmentId)?.departmentName || 'N/A'}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border-t border-gray-700 pt-3">
+                  {renderAvailability(avail.days)}
+                </div>
+                
+                {avail.note && (
+                  <div className="bg-gray-700 p-2 rounded mt-3">
+                    <p className="text-sm text-gray-300">
+                      <span className="font-semibold">General Note:</span> {avail.note}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -901,17 +1299,17 @@ const ManagerAvailability = () => {
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
-          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded disabled:bg-gray-800"
+          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded disabled:bg-gray-800 transition"
         >
           Previous
         </button>
-        <span>
+        <span className="flex items-center">
           Page {page} of {totalPages}
         </span>
         <button
           onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           disabled={page === totalPages}
-          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded disabled:bg-gray-800"
+          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded disabled:bg-gray-800 transition"
         >
           Next
         </button>

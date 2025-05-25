@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
+import { FaEye } from "react-icons/fa";
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState("");
@@ -8,6 +9,8 @@ const ResetPassword = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
@@ -44,7 +47,7 @@ const ResetPassword = () => {
       return;
     }
     if (newPassword.length < 6) {
-      setError("Password must be at least  processes characters long.");
+      setError("Password must be at least 6 characters long.");
       setLoading(false);
       return;
     }
@@ -104,27 +107,39 @@ const ResetPassword = () => {
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">New Password</label>
-            <input
-              type="password"
-              className="w-full px-4 py-2 rounded bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter new password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              disabled={loading || !token}
-            />
+            <div className="relative">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                className="w-full px-4 py-2 rounded bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                disabled={loading || !token}
+              />
+              <FaEye
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+              />
+            </div>
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Confirm Password</label>
-            <input
-              type="password"
-              className="w-full px-4 py-2 rounded bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500"
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              disabled={loading || !token}
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                className="w-full px-4 py-2 rounded bg-gray-700 border border-gray-600 focus:ring-2 focus:ring-blue-500"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={loading || !token}
+              />
+              <FaEye
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              />
+            </div>
           </div>
           <button
             type="submit"

@@ -40,6 +40,8 @@ import Holidays from "./components/dashboard/Holidays";
 import EditAvailabilities from "./components/EmployeeDashboard/EditAvailability";
 import ShiftRequirements from "./components/EmployeeDashboard/ShiftRequirements";
 import EmployeeShifts from './components/EmployeeDashboard/EmployeeShifts';
+import ManagerMessage from "./components/dashboard/ManagerMessage";
+import Message from "./components/EmployeeDashboard/Message";
 
 function App() {
   return (
@@ -102,6 +104,7 @@ function App() {
         <Route path="availability" element={<ManagerAvailability />} />
         <Route path="Holidays" element={<Holidays />} />
         <Route path="shift-requirements" element={<ShiftRequirements />} />
+        <Route path="messages" element={<ManagerMessage/>} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 
@@ -129,6 +132,7 @@ function App() {
         <Route path="add-availability" element={<AvailabilityForm />} /> 
         <Route path="edit-availability/:availabilityId" element={<EditAvailabilities />} />
         <Route path="shifts" element={<EmployeeShifts />} />
+         <Route path="messages" element={<Message />} />
         <Route path="*" element={<Navigate to="summary" />} />
       </Route>
 

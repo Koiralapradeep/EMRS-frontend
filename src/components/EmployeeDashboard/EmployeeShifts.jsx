@@ -9,7 +9,8 @@ const EmployeeShifts = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const currentDate = dayjs('2025-05-03');
+  // Use the actual current date (May 19, 2025)
+  const currentDate = dayjs('2025-05-19');
   const currentDay = currentDate.day();
   const daysUntilNextSunday = (7 - currentDay) % 7 || 7;
   const upcomingSunday = currentDate.add(daysUntilNextSunday, 'day');
@@ -69,7 +70,7 @@ const EmployeeShifts = () => {
       });
       const employeeShifts = response.data.filter((shift) => {
         const shiftDate = dayjs(shift.weekStartDate)
-          .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day), 'day');
+          .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day.toLowerCase()), 'day');
         return (
           shift.employeeId._id.toString() === user._id.toString() &&
           shiftDate.isAfter(weekStartDate.subtract(1, 'day')) &&
@@ -77,6 +78,7 @@ const EmployeeShifts = () => {
         );
       });
       setShifts(employeeShifts || []);
+      setError(''); // Clear error if fetch is successful
     } catch (err) {
       const message = err.response?.status === 404 ? 'No shifts found for this week.' : (err.response?.data?.message || 'Failed to fetch shifts. Please try again later.');
       setError(message);
@@ -97,7 +99,13 @@ const EmployeeShifts = () => {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
-      setColleagues(response.data || []);
+      // Transform the response to ensure consistent data structure
+      const transformedColleagues = (response.data || []).map(colleague => ({
+        _id: colleague.id || colleague._id, // Handle both id and _id
+        fullName: colleague.fullName,
+        email: colleague.email,
+      }));
+      setColleagues(transformedColleagues);
     } catch (err) {
       const message = err.response?.status === 404 ? 'No colleagues found in your department.' : (err.response?.data?.message || 'Failed to fetch colleagues. Please try again later.');
       setError(message);
@@ -168,7 +176,7 @@ const EmployeeShifts = () => {
     }
 
     // Client-side validation: Shifts must be on the same day
-    if (selectedMyShift.day !== selectedColleagueShift.day) {
+    if (selectedMyShift.day.toLowerCase() !== selectedColleagueShift.day.toLowerCase()) {
       toast.error('Selected shifts must be on the same day.');
       return;
     }
@@ -176,11 +184,11 @@ const EmployeeShifts = () => {
     // Client-side validation: Shifts must not have started
     const now = dayjs();
     const myShiftDateTime = dayjs(selectedMyShift.weekStartDate)
-      .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(selectedMyShift.day), 'day')
+      .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(selectedMyShift.day.toLowerCase()), 'day')
       .set('hour', parseInt(selectedMyShift.startTime.split(':')[0]))
       .set('minute', parseInt(selectedMyShift.startTime.split(':')[1]));
     const colleagueShiftDateTime = dayjs(selectedColleagueShift.weekStartDate)
-      .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(selectedColleagueShift.day), 'day')
+      .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(selectedColleagueShift.day.toLowerCase()), 'day')
       .set('hour', parseInt(selectedColleagueShift.startTime.split(':')[0]))
       .set('minute', parseInt(selectedColleagueShift.startTime.split(':')[1]));
 
@@ -343,7 +351,7 @@ const EmployeeShifts = () => {
               <tbody>
                 {shifts.map((shift) => {
                   const shiftDate = dayjs(shift.weekStartDate)
-                    .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day), 'day')
+                    .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day.toLowerCase()), 'day')
                     .format('YYYY-MM-DD');
                   return (
                     <tr key={shift._id} className="border-b border-gray-700 hover:bg-gray-600 transition-colors">
@@ -384,7 +392,7 @@ const EmployeeShifts = () => {
               >
                 <option value="">Select a colleague</option>
                 {colleagues.map((colleague) => (
-                  <option key={colleague.id} value={colleague.id}>
+                  <option key={colleague._id} value={colleague._id}>
                     {`${colleague.fullName} (${colleague.email})`}
                   </option>
                 ))}
@@ -409,7 +417,7 @@ const EmployeeShifts = () => {
                   <div className="space-y-3 max-h-64 overflow-y-auto">
                     {shifts.map((shift) => {
                       const shiftDate = dayjs(shift.weekStartDate)
-                        .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day), 'day');
+                        .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day.toLowerCase()), 'day');
                       const shiftDateTime = shiftDate
                         .set('hour', parseInt(shift.startTime.split(':')[0]))
                         .set('minute', parseInt(shift.startTime.split(':')[1]));
@@ -451,7 +459,7 @@ const EmployeeShifts = () => {
                   <div className="space-y-3 max-h-64 overflow-y-auto">
                     {colleagueShifts.map((shift) => {
                       const shiftDate = dayjs(shift.weekStartDate)
-                        .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day), 'day');
+                        .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day.toLowerCase()), 'day');
                       const shiftDateTime = shiftDate
                         .set('hour', parseInt(shift.startTime.split(':')[0]))
                         .set('minute', parseInt(shift.startTime.split(':')[1]));
@@ -508,12 +516,12 @@ const EmployeeShifts = () => {
               const colleagueShift = request.colleagueShiftId;
 
               const requesterShiftDate = dayjs(requesterShift.weekStartDate)
-                .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(requesterShift.day), 'day')
+                .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(requesterShift.day.toLowerCase()), 'day')
                 .format('ddd DD MMM');
               const requesterShiftDay = requesterShift.day.charAt(0).toUpperCase() + requesterShift.day.slice(1);
 
               const colleagueShiftDate = dayjs(colleagueShift.weekStartDate)
-                .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(colleagueShift.day), 'day')
+                .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(colleagueShift.day.toLowerCase()), 'day')
                 .format('ddd DD MMM');
               const colleagueShiftDay = colleagueShift.day.charAt(0).toUpperCase() + colleagueShift.day.slice(1);
 

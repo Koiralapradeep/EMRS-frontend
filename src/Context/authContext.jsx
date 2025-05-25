@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
   const [departmentId, setDepartmentId] = useState(() => localStorage.getItem("departmentId") || null);
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       setLoading(true);
+      setAuthError(null);
       const token = localStorage.getItem("token");
       if (token) {
         if (isTokenExpired(token)) {
@@ -90,6 +92,7 @@ export const AuthProvider = ({ children }) => {
           await logout();
         } else {
           console.error(`Failed to fetch user (Status: ${response.status})`);
+          setAuthError(`Failed to fetch user data (Status: ${response.status})`);
         }
         return;
       }
@@ -122,6 +125,7 @@ export const AuthProvider = ({ children }) => {
             setCompanyId(data.user.companyId);
           } else {
             console.warn("ERROR: `companyId` is missing from user data!");
+            setAuthError("User is not associated with a company.");
           }
 
           if (data.user.companyName) {
@@ -130,6 +134,7 @@ export const AuthProvider = ({ children }) => {
             setCompanyName(data.user.companyName);
           } else {
             console.warn("ERROR: `companyName` is missing from user data!");
+            setCompanyName("Unknown Company");
           }
 
           const employeeResponse = await fetch(`http://localhost:3000/api/employees/user/${data.user._id}`, {
@@ -168,6 +173,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       console.error("Error fetching user:", err.message);
+      setAuthError("An error occurred while fetching user data.");
     }
   };
 
@@ -176,6 +182,7 @@ export const AuthProvider = ({ children }) => {
 
     if (!token) {
       console.error("ERROR - No token received during login");
+      setAuthError("No token received during login.");
       return;
     }
 
@@ -198,6 +205,7 @@ export const AuthProvider = ({ children }) => {
         setCompanyId(user.companyId);
       } else {
         console.warn("ERROR - No `companyId` found in user data!");
+        setAuthError("User is not associated with a company.");
       }
 
       if (user.companyName) {
@@ -206,6 +214,7 @@ export const AuthProvider = ({ children }) => {
         setCompanyName(user.companyName);
       } else {
         console.warn("ERROR - No `companyName` found in user data!");
+        setCompanyName("Unknown Company");
       }
 
       fetch(`http://localhost:3000/api/employees/user/${user._id}`, {
@@ -261,6 +270,7 @@ export const AuthProvider = ({ children }) => {
     console.log("Logging out user...");
     setIsLoggingOut(true);
     setLoading(true);
+    setAuthError(null);
 
     try {
       const token = localStorage.getItem("token");
@@ -310,7 +320,6 @@ export const AuthProvider = ({ children }) => {
       document.cookie = "connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
       console.log("Cleared connect.sid cookie on frontend.");
 
-      // Safely disconnect sockets
       if (window.notificationSocket && typeof window.notificationSocket.disconnect === 'function') {
         window.notificationSocket.disconnect();
         window.notificationSocket = null;
@@ -326,7 +335,6 @@ export const AuthProvider = ({ children }) => {
         console.log("No socket to disconnect or disconnect method not available.");
       }
 
-      // Perform state updates and navigation synchronously
       setLoading(false);
       navigate("/login", { replace: true });
       console.log("User logged out successfully.");
@@ -362,7 +370,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <UserContext.Provider
-      value={{ user, companyId, companyName, departmentId, login, logout, setUser, loading, isLoggingOut }}
+      value={{ user, companyId, companyName, departmentId, login, logout, setUser, loading, isLoggingOut, authError }}
     >
       {children}
     </UserContext.Provider>

@@ -108,39 +108,58 @@ const Login = () => {
   }, [navigate, setUser, location.search]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    try {
-      console.log("DEBUG - Sending login request to /api/auth/login");
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
-        email,
-        password,
-      }, {
-        headers: { "Content-Type": "application/json" },
-        withCredentials: true,
-      });
-      console.log("Manual login response:", response.data);
-      if (!response.data?.success || !response.data?.user) {
-        setError("Login failed. No user data received.");
-        return;
-      }
-      const { user, token } = response.data;
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-      setUser(user);
-      if (user.role === "Admin") {
-        navigate("/admin-dashboard", { replace: true });
-      } else if (user.role === "Manager") {
-        navigate("/manager-dashboard", { replace: true });
-      } else {
-        navigate("/employee-dashboard", { replace: true });
-      }
-    } catch (err) {
-      console.error("Login Error:", err.response?.data || err.message);
-      const errorMessage = err.response?.data?.error || "An unexpected error occurred.";
-      setError(errorMessage);
+  e.preventDefault();
+  setError("");
+  
+  // Client-side validation
+  if (!email.trim()) {
+    setError("Email is required.");
+    return;
+  }
+  
+  if (!password.trim()) {
+    setError("Password is required.");
+    return;
+  }
+  
+  //Basic email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    setError("Please enter a valid email address.");
+    return;
+  }
+  
+  try {
+    console.log("DEBUG - Sending login request to /api/auth/login");
+    const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
+      email,
+      password,
+    }, {
+      headers: { "Content-Type": "application/json" },
+      withCredentials: true,
+    });
+    console.log("Manual login response:", response.data);
+    if (!response.data?.success || !response.data?.user) {
+      setError("Login failed. No user data received.");
+      return;
     }
-  };
+    const { user, token } = response.data;
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+    setUser(user);
+    if (user.role === "Admin") {
+      navigate("/admin-dashboard", { replace: true });
+    } else if (user.role === "Manager") {
+      navigate("/manager-dashboard", { replace: true });
+    } else {
+      navigate("/employee-dashboard", { replace: true });
+    }
+  } catch (err) {
+    console.error("Login Error:", err.response?.data || err.message);
+    const errorMessage = err.response?.data?.error || "An unexpected error occurred.";
+    setError(errorMessage);
+  }
+};
 
   const handleGoogleLogin = () => {
     console.log("DEBUG - Initiating Google OAuth login");

@@ -411,29 +411,50 @@ const ShiftRequirements = () => {
   };
 
   const deleteShiftSlot = async (day, index) => {
-    setLoading((prev) => ({ ...prev, save: true }));
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.put(
-        `${API_BASE_URL}/api/availability/shift-requirements/${user.companyId}/${selectedDepartment}/delete-slot`,
-        { day, slotIndex: index },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        }
-      );
-      setSuccess(response.data.message);
-      toast.success(response.data.message, { duration: 7000 });
-      setShiftRequirements(response.data.data);
-      setOriginalShiftRequirements(JSON.parse(JSON.stringify(response.data.data)));
-    } catch (err) {
-      const message = err.response?.data?.message || 'Failed to delete slot. Please try again later.';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading((prev) => ({ ...prev, save: false }));
-    }
-  };
+  // Add confirmation prompt
+  const confirmDelete = window.confirm(`Are you sure you want to delete the shift slot for ${day.charAt(0).toUpperCase() + day.slice(1)}?`);
+  if (!confirmDelete) {
+    console.log('Shift slot deletion cancelled by user');
+    return;
+  }
+
+  setLoading((prev) => ({ ...prev, save: true }));
+  try {
+    const token = localStorage.getItem('token');
+    console.log('Sending DELETE request:', {
+      url: `${API_BASE_URL}/api/availability/${user.companyId}/${selectedDepartment}/shift-requirements`,
+      companyId: user.companyId,
+      departmentId: selectedDepartment,
+      day,
+      slotIndex: index,
+      token: token ? token.slice(0, 20) + '...' : 'No token'
+    });
+    const response = await axios.delete(
+      `${API_BASE_URL}/api/availability/${user.companyId}/${selectedDepartment}/shift-requirements`,
+      {
+        data: { day, slotIndex: index },
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      }
+    );
+    console.log('DELETE response:', response.data);
+    setSuccess(response.data.message);
+    toast.success(response.data.message, { duration: 7000 });
+    setShiftRequirements(response.data.data);
+    setOriginalShiftRequirements(JSON.parse(JSON.stringify(response.data.data)));
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to delete slot. Please try again later.';
+    console.error('DELETE error:', {
+      message,
+      status: err.response?.status,
+      response: err.response?.data
+    });
+    setError(message);
+    toast.error(message);
+  } finally {
+    setLoading((prev) => ({ ...prev, save: false }));
+  }
+};
 
   const startEditingShiftSlot = (day, index) => {
     setEditingShiftId(`${day}-${index}`);
