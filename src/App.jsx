@@ -1,10 +1,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import React from 'react';
 import Login from "./Pages/Login";
-import ManagerDashboard from "./Pages/ManagerDashboard";
+import ManagerDashboard from "./Pages/Managerdashboard";
 import EmployeeDashboard from "./Pages/EmployeeDashboard";
 import AdminDashboard from "./Pages/AdminDashboard";
-import UnAuthorized from "./Pages/UnAuthorized";
+import UnAuthorized from "./Pages/unAuthorized";
 import PrivateRoutes from "./utils/PrivateRoutes";
 import RoleBasedRoute from "./utils/RoleBasedRoute";
 import ManagerSummary from "./components/dashboard/ManagerSummary";
