@@ -92,7 +92,7 @@ const View = () => {
           <div className="flex-shrink-0">
             {employee.image ? (
               <img
-                src={`http://localhost:3000/public/uploads/${employee.image}`}
+                src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/public/uploads/${employee.image}`}
                 alt={employee.fullName}
                 className="w-36 h-36 rounded-full object-cover border-4 border-teal-400 shadow-md"
                 onError={(e) => {

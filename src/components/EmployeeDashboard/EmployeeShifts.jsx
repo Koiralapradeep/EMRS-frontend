@@ -9,18 +9,18 @@ const EmployeeShifts = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Use the actual current date (May 19, 2025)
-  const currentDate = dayjs('2025-05-19');
+  // Use the actual current date (e.g., July 8, 2025)
+  const currentDate = dayjs();
   const currentDay = currentDate.day();
-  const daysUntilNextSunday = (7 - currentDay) % 7 || 7;
-  const upcomingSunday = currentDate.add(daysUntilNextSunday, 'day');
+  const daysSinceLastSunday = currentDay; // Number of days since last Sunday
+  const currentWeekSunday = currentDate.subtract(daysSinceLastSunday, 'day'); // Sunday of the current week
 
   const [shifts, setShifts] = useState([]);
   const [colleagues, setColleagues] = useState([]);
   const [selectedColleague, setSelectedColleague] = useState('');
   const [colleagueShifts, setColleagueShifts] = useState([]);
   const [swapRequests, setSwapRequests] = useState([]);
-  const [weekStartDate, setWeekStartDate] = useState(upcomingSunday);
+  const [weekStartDate, setWeekStartDate] = useState(currentWeekSunday);
   const [isLoading, setIsLoading] = useState({ shifts: false, colleagues: false, colleagueShifts: false, requests: false });
   const [error, setError] = useState('');
   const [selectedMyShift, setSelectedMyShift] = useState(null);
@@ -78,7 +78,7 @@ const EmployeeShifts = () => {
         );
       });
       setShifts(employeeShifts || []);
-      setError(''); // Clear error if fetch is successful
+      setError('');
     } catch (err) {
       const message = err.response?.status === 404 ? 'No shifts found for this week.' : (err.response?.data?.message || 'Failed to fetch shifts. Please try again later.');
       setError(message);
@@ -99,9 +99,8 @@ const EmployeeShifts = () => {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
-      // Transform the response to ensure consistent data structure
       const transformedColleagues = (response.data || []).map(colleague => ({
-        _id: colleague.id || colleague._id, // Handle both id and _id
+        _id: colleague.id || colleague._id,
         fullName: colleague.fullName,
         email: colleague.email,
       }));
@@ -175,13 +174,11 @@ const EmployeeShifts = () => {
       return;
     }
 
-    // Client-side validation: Shifts must be on the same day
     if (selectedMyShift.day.toLowerCase() !== selectedColleagueShift.day.toLowerCase()) {
       toast.error('Selected shifts must be on the same day.');
       return;
     }
 
-    // Client-side validation: Shifts must not have started
     const now = dayjs();
     const myShiftDateTime = dayjs(selectedMyShift.weekStartDate)
       .add(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(selectedMyShift.day.toLowerCase()), 'day')
@@ -197,7 +194,6 @@ const EmployeeShifts = () => {
       return;
     }
 
-    // Client-side validation: Shifts must be at least 3 hours in the future
     const threeHoursBeforeMyShift = myShiftDateTime.subtract(3, 'hour');
     const threeHoursBeforeColleagueShift = colleagueShiftDateTime.subtract(3, 'hour');
     if (now.isAfter(threeHoursBeforeMyShift) || now.isAfter(threeHoursBeforeColleagueShift)) {

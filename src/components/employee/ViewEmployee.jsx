@@ -46,7 +46,7 @@ const ViewEmployee = () => {
           {/* Employee Photo */}
           {employee.image ? (
             <img
-              src={`http://localhost:3000/public/uploads/${employee.image}`}
+              src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/public/uploads/${employee.image}`}
               alt={employee.fullName}
               className="w-36 h-36 rounded-full object-cover border-2 border-gray-400"
             />

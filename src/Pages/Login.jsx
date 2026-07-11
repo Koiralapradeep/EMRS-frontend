@@ -163,7 +163,8 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     console.log("DEBUG - Initiating Google OAuth login");
-    window.location.href = "http://localhost:3000/auth/google";
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    window.location.href = `${apiUrl}/auth/google`;
   };
 
   return (

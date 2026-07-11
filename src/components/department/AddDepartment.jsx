@@ -12,27 +12,40 @@ const AddDepartment = () => {
     setError("");
 
     const token = localStorage.getItem("token");
-    const companyId = localStorage.getItem("companyId"); // Ensure companyId is retrieved
+    const companyId = localStorage.getItem("companyId");
+
+    if (!token) {
+      setError("Error: No authentication token found. Please log in again.");
+      return;
+    }
 
     if (!companyId) {
       setError("Error: No company assigned. Please log in again.");
       return;
     }
 
+    const payload = { ...form, companyId };
+    console.log("Submitting department:", payload);
+
     try {
-      await axios.post(
+      const response = await axios.post(
         "http://localhost:3000/api/departments",
-        { ...form, companyId }, // Attach companyId to the request
+        payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      navigate("/manager-dashboard/department"); // Redirect to department list
+      console.log("Department added successfully:", response.data);
+      navigate("/manager-dashboard/department");
     } catch (err) {
       console.error("Error adding department:", err);
-      setError(err.response?.data?.error || "Failed to add department.");
+      const errorMessage =
+        err.response?.data?.details ||
+        err.response?.data?.error ||
+        "Failed to add department. Please try again.";
+      setError(errorMessage);
     }
   };
 
